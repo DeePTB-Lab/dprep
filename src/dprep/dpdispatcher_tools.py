@@ -355,7 +355,7 @@ def run_jobs_remotely(n_parallel_machines, resrc_info, machine_info, db_src_path
                         pass
                     an_atoms = a_row.toatoms()  # Convert the data row to 'atoms' object
                     if id_name:
-                        sub_db.write(an_atoms, hpc_id=a_row[id_name])  # Write
+                        sub_db.write(an_atoms, hpc_id=a_row.data[id_name])  # Write
                     else:
                         sub_db.write(an_atoms, hpc_id=f'id_{real_idx}')
 
