@@ -1,0 +1,24 @@
+INPUT_PARAMETERS
+
+# ntype                  2 # 高通量脚本会根据实际结构中元素数量做动态调整，其余参数如有需要也可以调整
+pseudo_dir              /root/general_local_test/public/new_basis_set # 所有赝势轨道位置
+orbital_dir             /root/general_local_test/public/new_basis_set
+ecutwfc                 100 # 标准基组文件统一为 100 （文件名显示的）
+scf_thr                 1e-1 # 正式生产时调低
+scf_nmax                100 
+symmetry                0
+kspacing                0.08
+basis_type              lcao
+dft_functional          pbe 
+calculation             scf 
+ks_solver               genelpa
+smearing_method         gaussian
+smearing_sigma          0.002
+lspinorb                0  #后续考虑加上 SOC
+out_band                1  # output band structure
+out_chg                 -1  # output real space charge
+out_wfc_lcao            0  # output the wavefunction coefficients, Availability: Numerical atomic orbital basis
+out_mat_hs2             True # output ham and overlap matrix
+out_dm1                 1  # output density matrix,  out_dm with k-point algorithm is not implemented yet.
+# mixing_type             pulay  这个参数默认方法是 broyden，文档介绍说这个方法比 pulay 快
+# mixing_beta             0.7  这个参数我看是跟 nspin 相关，要不就不设置了，用默认的吧。默认的，不同的 nspin 这个值不一样

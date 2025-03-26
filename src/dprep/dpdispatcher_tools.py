@@ -1,152 +1,3 @@
-default_pp_orb_info = {
-    'pp': {
-        'Ag': 'Ag_ONCV_PBE-1.0.upf',
-        'Al': 'Al_ONCV_PBE-1.0.upf',
-        'Ar': 'Ar_ONCV_PBE-1.0.upf',
-        'As': 'As_ONCV_PBE-1.0.upf',
-        'Au': 'Au_ONCV_PBE-1.0.upf',
-        'B': 'B_ONCV_PBE-1.0.upf',
-        'Ba': 'Ba_ONCV_PBE-1.0.upf',
-        'Be': 'Be_ONCV_PBE-1.0.upf',
-        'Bi': 'Bi_ONCV_PBE-1.0.upf',
-        'Br': 'Br_ONCV_PBE-1.0.upf',
-        'C': 'C_ONCV_PBE-1.0.upf',
-        'Ca': 'Ca_ONCV_PBE-1.0.upf',
-        'Cd': 'Cd_ONCV_PBE-1.0.upf',
-        'Cl': 'Cl_ONCV_PBE-1.0.upf',
-        'Co': 'Co_ONCV_PBE-1.0.upf',
-        'Cr': 'Cr_ONCV_PBE-1.0.upf',
-        'Cs': 'Cs_ONCV_PBE-1.0.upf',
-        'Cu': 'Cu_ONCV_PBE-1.0.upf',
-        'F': 'F_ONCV_PBE-1.0.upf',
-        'Fe': 'Fe_ONCV_PBE-1.0.upf',
-        'Ga': 'Ga_ONCV_PBE-1.0.upf',
-        'Ge': 'Ge_ONCV_PBE-1.0.upf',
-        'H': 'H_ONCV_PBE-1.0.upf',
-        'He': 'He_ONCV_PBE-1.0.upf',
-        'Hf': 'Hf_ONCV_PBE-1.0.upf',
-        'Hg': 'Hg_ONCV_PBE-1.0.upf',
-        'I': 'I_ONCV_PBE-1.0.upf',
-        'In': 'In_ONCV_PBE-1.0.upf',
-        'Ir': 'Ir_ONCV_PBE-1.0.upf',
-        'K': 'K_ONCV_PBE-1.0.upf',
-        'Kr': 'Kr_ONCV_PBE-1.0.upf',
-        'La': 'La_ONCV_PBE-1.0.upf',
-        'Li': 'Li_ONCV_PBE-1.0.upf',
-        'Mg': 'Mg_ONCV_PBE-1.0.upf',
-        'Mn': 'Mn_ONCV_PBE-1.0.upf',
-        'Mo': 'Mo_ONCV_PBE-1.0.upf',
-        'N': 'N_ONCV_PBE-1.0.upf',
-        'Na': 'Na_ONCV_PBE-1.0.upf',
-        'Nb': 'Nb_ONCV_PBE-1.0.upf',
-        'Ne': 'Ne_ONCV_PBE-1.0.upf',
-        'Ni': 'Ni_ONCV_PBE-1.0.upf',
-        'O': 'O_ONCV_PBE-1.0.upf',
-        'Os': 'Os_ONCV_PBE-1.0.upf',
-        'P': 'P_ONCV_PBE-1.0.upf',
-        'Pb': 'Pb_ONCV_PBE-1.0.upf',
-        'Pd': 'Pd_ONCV_PBE-1.0.upf',
-        'Pt': 'Pt_ONCV_PBE-1.0.upf',
-        'Rb': 'Rb_ONCV_PBE-1.0.upf',
-        'Re': 'Re_ONCV_PBE-1.0.upf',
-        'Rh': 'Rh_ONCV_PBE-1.0.upf',
-        'Ru': 'Ru_ONCV_PBE-1.0.upf',
-        'S': 'S_ONCV_PBE-1.0.upf',
-        'Sb': 'Sb_ONCV_PBE-1.0.upf',
-        'Sc': 'Sc_ONCV_PBE-1.0.upf',
-        'Se': 'Se_ONCV_PBE-1.0.upf',
-        'Si': 'Si_ONCV_PBE-1.0.upf',
-        'Sn': 'Sn_ONCV_PBE-1.0.upf',
-        'Sr': 'Sr_ONCV_PBE-1.0.upf',
-        'Ta': 'Ta_ONCV_PBE-1.0.upf',
-        'Tc': 'Tc_ONCV_PBE-1.0.upf',
-        'Te': 'Te_ONCV_PBE-1.0.upf',
-        'Ti': 'Ti_ONCV_PBE-1.0.upf',
-        'Tl': 'Tl_ONCV_PBE-1.0.upf',
-        'V': 'V_ONCV_PBE-1.0.upf',
-        'W': 'W_ONCV_PBE-1.0.upf',
-        'Xe': 'Xe_ONCV_PBE-1.0.upf',
-        'Y': 'Y_ONCV_PBE-1.0.upf',
-        'Zn': 'Zn_ONCV_PBE-1.0.upf',
-        'Zr': 'Zr_ONCV_PBE-1.0.upf',
-    },
-    'basis': {
-        'Ag': 'Ag_gga_7au_100Ry_4s2p2d1f.orb',
-        'Al': 'Al_gga_7au_100Ry_4s4p1d.orb',
-        'Ar': 'Ar_gga_7au_100Ry_2s2p1d.orb',
-        'As': 'As_gga_7au_100Ry_2s2p1d.orb',
-        'Au': 'Au_gga_7au_100Ry_4s2p2d1f.orb',
-        'B': 'B_gga_8au_100Ry_2s2p1d.orb',
-        'Ba': 'Ba_gga_10au_100Ry_4s2p2d1f.orb',
-        'Be': 'Be_gga_7au_100Ry_4s1p.orb',
-        'Bi': 'Bi_gga_7au_100Ry_2s2p2d1f.orb',
-        'Br': 'Br_gga_7au_100Ry_2s2p1d.orb',
-        'C': 'C_gga_7au_100Ry_2s2p1d.orb',
-        'Ca': 'Ca_gga_9au_100Ry_4s2p1d.orb',
-        'Cd': 'Cd_gga_7au_100Ry_4s2p2d1f.orb',
-        'Cl': 'Cl_gga_7au_100Ry_2s2p1d.orb',
-        'Co': 'Co_gga_8au_100Ry_4s2p2d1f.orb',
-        'Cr': 'Cr_gga_8au_100Ry_4s2p2d1f.orb',
-        'Cs': 'Cs_gga_10au_100Ry_4s2p1d.orb',
-        'Cu': 'Cu_gga_8au_100Ry_4s2p2d1f.orb',
-        'F': 'F_gga_7au_100Ry_2s2p1d.orb',
-        'Fe': 'Fe_gga_8au_100Ry_4s2p2d1f.orb',
-        'Ga': 'Ga_gga_8au_100Ry_2s2p2d1f.orb',
-        'Ge': 'Ge_gga_8au_100Ry_2s2p2d1f.orb',
-        'H': 'H_gga_6au_100Ry_2s1p.orb',
-        'He': 'He_gga_6au_100Ry_2s1p.orb',
-        'Hf': 'Hf_gga_7au_100Ry_4s2p2d2f1g.orb',
-        'Hg': 'Hg_gga_9au_100Ry_4s2p2d1f.orb',
-        'I': 'I_gga_7au_100Ry_2s2p2d1f.orb',
-        'In': 'In_gga_7au_100Ry_2s2p2d1f.orb',
-        'Ir': 'Ir_gga_7au_100Ry_4s2p2d1f.orb',
-        'K': 'K_gga_9au_100Ry_4s2p1d.orb',
-        'Kr': 'Kr_gga_7au_100Ry_2s2p1d.orb',
-        'Li': 'Li_gga_7au_100Ry_4s1p.orb',
-        'Mg': 'Mg_gga_8au_100Ry_4s2p1d.orb',
-        'Mn': 'Mn_gga_8au_100Ry_4s2p2d1f.orb',
-        'Mo': 'Mo_gga_7au_100Ry_4s2p2d1f.orb',
-        'N': 'N_gga_7au_100Ry_2s2p1d.orb',
-        'Na': 'Na_gga_8au_100Ry_4s2p1d.orb',
-        'Nb': 'Nb_gga_8au_100Ry_4s2p2d1f.orb',
-        'Ne': 'Ne_gga_6au_100Ry_2s2p1d.orb',
-        'Ni': 'Ni_gga_8au_100Ry_4s2p2d1f.orb',
-        'O': 'O_gga_7au_100Ry_2s2p1d.orb',
-        'Os': 'Os_gga_7au_100Ry_4s2p2d1f.orb',
-        'P': 'P_gga_7au_100Ry_2s2p1d.orb',
-        'Pb': 'Pb_gga_7au_100Ry_2s2p2d1f.orb',
-        'Pd': 'Pd_gga_7au_100Ry_4s2p2d1f.orb',
-        'Pt': 'Pt_gga_7au_100Ry_4s2p2d1f.orb',
-        'Rb': 'Rb_gga_10au_100Ry_4s2p1d.orb',
-        'Re': 'Re_gga_7au_100Ry_4s2p2d1f.orb',
-        'Rh': 'Rh_gga_7au_100Ry_4s2p2d1f.orb',
-        'Ru': 'Ru_gga_7au_100Ry_4s2p2d1f.orb',
-        'S': 'S_gga_7au_100Ry_2s2p1d.orb',
-        'Sb': 'Sb_gga_7au_100Ry_2s2p2d1f.orb',
-        'Sc': 'Sc_gga_8au_100Ry_4s2p2d1f.orb',
-        'Se': 'Se_gga_8au_100Ry_2s2p1d.orb',
-        'Si': 'Si_gga_7au_100Ry_2s2p1d.orb',
-        'Sn': 'Sn_gga_7au_100Ry_2s2p2d1f.orb',
-        'Sr': 'Sr_gga_9au_100Ry_4s2p1d.orb',
-        'Ta': 'Ta_gga_8au_100Ry_4s2p2d2f1g.orb',
-        'Tc': 'Tc_gga_7au_100Ry_4s2p2d1f.orb',
-        'Te': 'Te_gga_7au_100Ry_2s2p2d1f.orb',
-        'Ti': 'Ti_gga_8au_100Ry_4s2p2d1f.orb',
-        'Tl': 'Tl_gga_7au_100Ry_2s2p2d1f.orb',
-        'V': 'V_gga_8au_100Ry_4s2p2d1f.orb',
-        'W': 'W_gga_8au_100Ry_4s2p2d2f1g.orb',
-        'Xe': 'Xe_gga_8au_100Ry_2s2p2d1f.orb',
-        'Y': 'Y_gga_8au_100Ry_4s2p2d1f.orb',
-        'Zn': 'Zn_gga_8au_100Ry_4s2p2d1f.orb',
-        'Zr': 'Zr_gga_8au_100Ry_4s2p2d1f.orb',
-    }
-}
-
-##############################
-# Code below
-##############################
-
-
 import argparse
 import logging
 import math
@@ -163,6 +14,8 @@ from ase.db.core import connect
 from ase.io import write
 from ase.io.abacus import write_abacus
 from dpdispatcher import Task, Submission, Machine, Resources
+from dprep.pp_orb_info import default_pp_orb_info
+
 
 # Configure logging to file 'job_monitor.log'
 logging.basicConfig(filename='job_monitor.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -342,9 +195,7 @@ def prepare_job_directories(db_src_path, common_folder_path, cooking_path, pp_or
     with connect(db_src_path) as db_src:
         for a_row in db_src.select():
             an_atoms = a_row.toatoms()
-            mp_id = a_row.material_id.split('-')[-1]
-            structure_id = f"mp_id_{mp_id}"
-            job_dir = os.path.join(cooking_path, structure_id)
+            job_dir = os.path.join(cooking_path, a_row.hpc_id)
             os.makedirs(job_dir, exist_ok=True)
             os.chdir(job_dir)
             write_abacus(os.path.join(job_dir, 'STRU'), an_atoms, scaled=False,
@@ -366,12 +217,65 @@ def prepare_job_directories(db_src_path, common_folder_path, cooking_path, pp_or
     return
 
 
-def run_jobs_locally(n_parallel_jobs, db_src_path, common_folder_path, cmd_line, clean_files_flag=True,
-                     rm_out_files_list: list = ['INPUT'], pp_orb_info=default_pp_orb_info):
+def create_local_handler_file(n_parallel_jobs,
+                              cmd_line,
+                              common_folder_path='public',
+                              local_db_name='sub_structures.db',
+                              clean_files_flag=False, 
+                              rm_out_files_list=[],
+                              pp_orb_info=default_pp_orb_info,
+                              output_file='local_handler.py'):
+    """
+    Create a local_handler.py file based on the provided parameters.
+
+    Parameters:
+        n_parallel_jobs: Number of parallel jobs.
+        common_folder_path: Path to the common folder.
+        cmd_line: Command line string to be executed.
+        local_db_name: Name or path of the local database. (Default: 'sub_structures.db')
+        clean_files_flag: Boolean flag to indicate whether to clean files. (Default: False)
+        rm_out_files_list: List of output files to be removed. (Default: [])
+        pp_orb_info: info for pp and orb. (Default: default_pp_orb_info)
+        output_file: Name of the file to be generated. (Default: 'local_handler.py')
+    """
+    # Use f-string to format the file content with the provided parameters
+    file_content = f"""import os
+import sys
+from ase.calculators.abacus import Abacus
+
+import logging
+from dprep.dpdispatcher_tools import run_jobs_locally
+
+# Configure logging for local handler example to 'local_handler_example.log'
+logging.basicConfig(filename='local_handler_example.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+run_jobs_locally(
+    n_parallel_jobs={n_parallel_jobs},
+    local_db_name='{local_db_name}',
+    common_folder_path='{common_folder_path}',
+    cmd_line='{cmd_line}',
+    clean_files_flag={clean_files_flag},
+    pp_orb_info={pp_orb_info},
+    rm_out_files_list={rm_out_files_list}
+)
+"""
+    # Write the formatted content to the specified file
+    with open(output_file, 'w') as f:
+        f.write(file_content)
+    print(f"File generated: {output_file}")
+
+
+def run_jobs_locally(n_parallel_jobs, cmd_line, 
+                     common_folder_path, 
+                     clean_files_flag=False,
+                     local_db_name='sub_structures.db',
+                     rm_out_files_list: list = [],
+                     pp_orb_info=default_pp_orb_info):
+
     cwd_ = os.getcwd()
     cooking_path = os.path.abspath('cooking')
     common_folder_path = os.path.abspath(common_folder_path)
-    prepare_job_directories(db_src_path=db_src_path, common_folder_path=common_folder_path, cooking_path=cooking_path, pp_orb_info=pp_orb_info)
+    prepare_job_directories(db_src_path=local_db_name, common_folder_path=common_folder_path, cooking_path=cooking_path, pp_orb_info=pp_orb_info)
 
     n_total_jobs = 0
     job_queue = Queue()
@@ -408,7 +312,7 @@ def run_jobs_locally(n_parallel_jobs, db_src_path, common_folder_path, cmd_line,
                 f"Completed {completed_jobs}/{n_total_jobs} jobs. Estimated remaining time: {estimated_remaining_time / 3600:.2f} hours.")
 
 
-def run_jobs_remotely(n_parallel_machines, resrc_info, machine_info, db_src_path, common_folder_path, handler_file_name, sub_db_name):
+def run_jobs_remotely(n_parallel_machines, resrc_info, machine_info, db_src_path, common_folder_path, local_job_para, id_name=None):
     cwd_ = os.getcwd()
     db_src_path = os.path.abspath(db_src_path)
     common_folder_path = os.path.abspath(common_folder_path)
@@ -433,15 +337,16 @@ def run_jobs_remotely(n_parallel_machines, resrc_info, machine_info, db_src_path
         sub_n_mols = math.ceil(total_n_mols / n_parallel_machines)
         actual_machine_used = total_n_mols // sub_n_mols + 1
 
+    create_local_handler_file(**local_job_para)
+
     with connect(db_src_path) as src_db:
         for i in range(actual_machine_used):
             os.chdir(cooking_path)
             os.makedirs(f'{str(i)}')
             os.chdir(f'{str(i)}')
             shutil.copytree(src=common_folder_path, dst='public')
-            shutil.copy(src=os.path.join(cwd_, handler_file_name), dst=handler_file_name)
-            shutil.copy(src=os.path.join(cwd_, 'dptb_dpdispatcher_tools.py'), dst='dptb_dpdispatcher_tools.py')
-            with connect(sub_db_name) as sub_db:
+            shutil.copy(src=os.path.join(cwd_, 'local_handler.py'), dst='local_handler.py')
+            with connect('sub_structures.db') as sub_db:
                 start_index = i * sub_n_mols
                 end_index = (i + 1) * sub_n_mols if i < actual_machine_used - 1 else len(random_idx_list)
                 indices_for_sub = random_idx_list[start_index:end_index] # Slice the random index list for the current sub
@@ -449,10 +354,14 @@ def run_jobs_remotely(n_parallel_machines, resrc_info, machine_info, db_src_path
                     for a_row in src_db.select(id=real_idx+1):
                         pass
                     an_atoms = a_row.toatoms()  # Convert the data row to 'atoms' object
-                    sub_db.write(an_atoms, material_id=a_row.data.material_id)  # Write
+                    if id_name:
+                        sub_db.write(an_atoms, hpc_id=a_row[id_name])  # Write
+                    else:
+                        sub_db.write(an_atoms, hpc_id=f'id_{real_idx}')
+
             # task
             a_task = Task(
-                command=fr'python {handler_file_name} 2>&1 ',
+                command=fr'python local_handler.py 2>&1 ',
                 task_work_path=f'{str(i)}/',
                 forward_files=[f'{cooking_path}/{str(i)}/*'],
                 backward_files=[f'cooking']
