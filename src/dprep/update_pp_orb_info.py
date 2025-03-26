@@ -61,7 +61,7 @@ def generate_pp_orb_dict(directory_path):
 
 # excute this file to update the pp orb info
 if __name__ == "__main__":
-    directory_path = "/root/general_local_test/public/new_basis_set"
+    directory_path = r"E:\deeptb\basis_set_test\new_basis_set"
 
     # Generate the dictionary
     result = generate_pp_orb_dict(directory_path)

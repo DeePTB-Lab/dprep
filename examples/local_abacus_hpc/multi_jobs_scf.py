@@ -9,6 +9,7 @@ local_job_para = {
     'cmd_line': 'OMP_NUM_THREADS=1 mpirun -n 12 abacus',
 }
 # -----------------------------------------------------------------------------------------------------------------
+local_root = os.getcwd()
 mach_para = {
     'batch_type': "Shell",
     'context_type': "LocalContext",

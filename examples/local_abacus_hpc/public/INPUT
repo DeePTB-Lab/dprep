@@ -1,8 +1,8 @@
 INPUT_PARAMETERS
 
 # ntype                  2 # 高通量脚本会根据实际结构中元素数量做动态调整，其余参数如有需要也可以调整
-pseudo_dir              /root/general_local_test/public/new_basis_set # 所有赝势轨道位置
-orbital_dir             /root/general_local_test/public/new_basis_set
+pseudo_dir            PP_ORB # 所有赝势轨道位置
+orbital_dir             PP_ORB
 ecutwfc                 100 # 标准基组文件统一为 100 （文件名显示的）
 scf_thr                 1e-1 # 正式生产时调低
 scf_nmax                100 
