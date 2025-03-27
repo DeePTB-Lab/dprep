@@ -30,17 +30,10 @@ def generate_pp_orb_dict(directory_path):
 
     # Process each file
     for filename in files:
-        if filename.endswith('.UPF'):
-            print('111111111')
-
-
         # Skip directories and non-relevant files
         if os.path.isdir(os.path.join(directory_path, filename)) or not (
                 filename.endswith('.upf') or filename.endswith('.orb')  or filename.endswith('.UPF')):
             continue
-
-        if filename.endswith('.UPF'):
-            print('2222222222')
 
         # Extract element symbol (first part of filename before underscore)
 

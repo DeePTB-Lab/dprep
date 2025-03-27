@@ -14,7 +14,8 @@ from ase.db.core import connect
 from ase.io import write
 from ase.io.abacus import write_abacus
 from dpdispatcher import Task, Submission, Machine, Resources
-from dprep.pp_orb_info import default_pp_orb_info
+from dprep.get_pp_orb_info import generate_pp_orb_dict
+
 
 
 # Configure logging to file 'job_monitor.log'
@@ -219,11 +220,11 @@ def prepare_job_directories(db_src_path, common_folder_path, cooking_path, pp_or
 
 def create_local_handler_file(n_parallel_jobs,
                               cmd_line,
+                              pp_orb_info,
                               common_folder_path='public',
                               local_db_name='sub_structures.db',
                               clean_files_flag=False, 
                               rm_out_files_list=[],
-                              pp_orb_info=default_pp_orb_info,
                               output_file='local_handler.py'):
     """
     Create a local_handler.py file based on the provided parameters.
@@ -232,10 +233,10 @@ def create_local_handler_file(n_parallel_jobs,
         n_parallel_jobs: Number of parallel jobs.
         common_folder_path: Path to the common folder.
         cmd_line: Command line string to be executed.
+        pp_orb_info: info for pp and orb.
         local_db_name: Name or path of the local database. (Default: 'sub_structures.db')
         clean_files_flag: Boolean flag to indicate whether to clean files. (Default: False)
         rm_out_files_list: List of output files to be removed. (Default: [])
-        pp_orb_info: info for pp and orb. (Default: default_pp_orb_info)
         output_file: Name of the file to be generated. (Default: 'local_handler.py')
     """
     # Use f-string to format the file content with the provided parameters
@@ -266,11 +267,11 @@ run_jobs_locally(
 
 
 def run_jobs_locally(n_parallel_jobs, cmd_line, 
-                     common_folder_path, 
+                     common_folder_path,
+                     pp_orb_info,
                      clean_files_flag=False,
                      local_db_name='sub_structures.db',
-                     rm_out_files_list: list = [],
-                     pp_orb_info=default_pp_orb_info):
+                     rm_out_files_list: list = [],):
 
     cwd_ = os.getcwd()
     cooking_path = os.path.abspath('cooking')
@@ -312,7 +313,7 @@ def run_jobs_locally(n_parallel_jobs, cmd_line,
                 f"Completed {completed_jobs}/{n_total_jobs} jobs. Estimated remaining time: {estimated_remaining_time / 3600:.2f} hours.")
 
 
-def run_jobs_remotely(n_parallel_machines, resrc_info, machine_info, db_src_path, common_folder_path, local_job_para, id_name=None):
+def run_jobs_remotely(n_parallel_machines, resrc_info, machine_info, local_job_para, db_src_path, common_folder_path, pp_orb_info_path, id_name=None):
     cwd_ = os.getcwd()
     db_src_path = os.path.abspath(db_src_path)
     common_folder_path = os.path.abspath(common_folder_path)
@@ -337,6 +338,7 @@ def run_jobs_remotely(n_parallel_machines, resrc_info, machine_info, db_src_path
         sub_n_mols = math.ceil(total_n_mols / n_parallel_machines)
         actual_machine_used = total_n_mols // sub_n_mols + 1
 
+    local_job_para['pp_orb_info'] = generate_pp_orb_dict(pp_orb_info_path)
     create_local_handler_file(**local_job_para)
 
     with connect(db_src_path) as src_db:
@@ -355,7 +357,7 @@ def run_jobs_remotely(n_parallel_machines, resrc_info, machine_info, db_src_path
                         pass
                     an_atoms = a_row.toatoms()  # Convert the data row to 'atoms' object
                     if id_name:
-                        sub_db.write(an_atoms, hpc_id=a_row.data[id_name])  # Write
+                        sub_db.write(an_atoms, hpc_id=a_row.data[id_name])
                     else:
                         sub_db.write(an_atoms, hpc_id=f'id_{real_idx}')
 
