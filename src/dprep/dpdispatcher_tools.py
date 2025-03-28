@@ -315,6 +315,13 @@ def run_jobs_remotely(n_parallel_machines, resrc_info, machine_info, local_job_p
     create_local_handler_file(**local_job_para)
 
     with connect(db_src_path) as src_db:
+        if id_name is not None:
+            for a_row in src_db.select():
+                try:
+                    an_id = a_row[id_name]
+                    direct_id_name_flag = True
+                except:
+                    direct_id_name_flag = False
         for i in range(actual_machine_used):
             os.chdir(cooking_path)
             os.makedirs(f'{str(i)}')
@@ -330,7 +337,11 @@ def run_jobs_remotely(n_parallel_machines, resrc_info, machine_info, local_job_p
                         pass
                     an_atoms = a_row.toatoms()  # Convert the data row to 'atoms' object
                     if id_name:
-                        sub_db.write(an_atoms, hpc_id=a_row.data[id_name])
+                        if direct_id_name_flag:
+                            an_id = a_row[id_name]
+                        else:
+                            an_id = a_row.data[id_name]
+                        sub_db.write(an_atoms, hpc_id=an_id)
                     else:
                         sub_db.write(an_atoms, hpc_id=f'id_{real_idx}')
 

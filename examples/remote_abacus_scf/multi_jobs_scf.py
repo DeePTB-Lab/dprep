@@ -17,9 +17,9 @@ mach_para = {
     "context_type": "Bohrium",
     'remote_root': '/root/test_dpdispatcher',
     'remote_profile': {
-        "email": '1660810667@qq.com',
-        "password": 'frank685231_',
-        "project_id": 320004,
+        "email": 'xx',
+        "password": 'xx',
+        "project_id": 0,
         "input_data": {
             "job_type": "container",
             "log_file": "log",
