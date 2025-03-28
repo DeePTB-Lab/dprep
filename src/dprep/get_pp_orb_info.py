@@ -36,11 +36,7 @@ def generate_pp_orb_dict(directory_path):
             continue
 
         # Extract element symbol (first part of filename before underscore)
-
-        parts = filename.split('_')
-        element_part = parts[0]
-        element_parts = element_part.split('.')
-        element = element_parts[0]
+        element = filename.split('_')[0].split('.')[0].split('-')[0]
 
         # Categorize files by type
         if filename.endswith('.upf'):
