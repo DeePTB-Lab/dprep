@@ -1,26 +1,21 @@
-import argparse
 import logging
 import math
 import os
+import random
 import shutil
 import subprocess
 import time
 from datetime import datetime
 from queue import Queue
 from threading import Thread
-import random
 
 from ase.db.core import connect
-from ase.io import write
 from ase.io.abacus import write_abacus
 from dpdispatcher import Task, Submission, Machine, Resources
 from dprep.get_pp_orb_info import generate_pp_orb_dict
 
-
-
 # Configure logging to file 'job_monitor.log'
 logging.basicConfig(filename='job_monitor.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
 
 def submit_job(job_folder, cmd_line):
     """Submits a job to the local system using subprocess.
@@ -37,7 +32,37 @@ def submit_job(job_folder, cmd_line):
     return process
 
 
-def monitor_jobs(job_queue, active_jobs, cmd_line):
+def log_remaining_time(start_time, n_completed_jobs, n_total_jobs):
+    if n_completed_jobs == 0:
+        logging.info(f"Waiting for the first batch to finish, connot estimate the time right now.")
+        return
+    elapsed_time = (datetime.now() - start_time).total_seconds()
+    remaining_jobs = n_total_jobs - n_completed_jobs
+    avg_time_per_job = elapsed_time / n_completed_jobs
+    estimated_remaining_time = avg_time_per_job * remaining_jobs
+    logging.info(f"Completed {n_completed_jobs}/{n_total_jobs} jobs. "
+                 f"Estimated remaining time: {estimated_remaining_time / 3600:.2f} hours.")
+
+
+def clean_out_files(out_folder_path, rm_out_files_list=['INPUT']):
+    # Using topdown=True allows us to remove directories during traversal
+    # and avoid descending into directories that have been deleted.
+    for dirpath, dirnames, filenames in os.walk(out_folder_path, topdown=True):
+        # Process directories: iterate over a copy of dirnames.
+        for dirname in list(dirnames):
+            if dirname in rm_out_files_list:
+                full_dir_path = os.path.join(dirpath, dirname)
+                shutil.rmtree(full_dir_path)
+                # Remove the directory name from the list to avoid walking into it.
+                dirnames.remove(dirname)
+        # Process files.
+        for filename in filenames:
+            if filename in rm_out_files_list:
+                full_file_path = os.path.join(dirpath, filename)
+                os.remove(full_file_path)
+
+
+def monitor_jobs(job_queue, active_jobs, cmd_line, clean_files_flag, rm_out_files_list):
     """Monitors active jobs and submits new ones from the queue.
 
     This function runs in a separate thread and continuously checks the status of active jobs.
@@ -53,69 +78,14 @@ def monitor_jobs(job_queue, active_jobs, cmd_line):
             retcode = process.poll()
             if retcode is not None:  # Job has finished (poll() returns return code when process terminates)
                 del active_jobs[job_folder]
-
+                with open(os.path.join(job_folder, 'FINISHED'), 'w') as f:
+                    pass
+                if clean_files_flag:
+                    clean_out_files(out_folder_path=job_folder, rm_out_files_list=rm_out_files_list)
                 if not job_queue.empty():  # Submit new job if queue is not empty
                     next_job = job_queue.get()
                     active_jobs[next_job] = submit_job(next_job, cmd_line)
         time.sleep(1)  # Check job status every second
-
-
-def clean_common_files(common_folder_path, sub_cooking_path):
-    for item in os.listdir(common_folder_path):
-        for a_file in os.listdir(sub_cooking_path):
-            if a_file == item:
-                if os.path.isdir(a_file):
-                    shutil.rmtree(a_file)
-                else:
-                    os.remove(a_file)
-                break
-
-
-def clean_out_files(out_folder_path, rm_out_files_list: list = ['INPUT']):
-    for item in os.listdir(out_folder_path):
-        if item in rm_out_files_list:
-            item_path = os.path.join(out_folder_path, item)
-            if os.path.isdir(item_path):
-                shutil.rmtree(item_path)
-            else:
-                os.remove(item_path)
-
-
-def chk_finished_jobs(cooking_path, common_folder_path, clean_files_flag, rm_out_files_list: list = ['INPUT']):
-    """Checks for finished jobs by counting 'OUTPUT' files in job directories.
-
-    This function walks through the cooking path and counts subdirectories that contain an 'OUTPUT' file,
-    indicating a completed ABACUS calculation (or simulation).
-
-    Args:
-        cooking_path (str): Path to the main cooking directory containing job subdirectories.
-
-    Returns:
-        int: Number of finished jobs.
-    """
-    count = 0
-    cwd_ = os.getcwd()
-    for root, dirs, files in os.walk(cooking_path):
-        for dir_name in dirs:
-            if dir_name.startswith('mp_id_'):  # Assumes job subdirectory names start with 'id_'
-                folder_path = os.path.join(root, dir_name)
-                if 'FINISHED' in os.listdir(folder_path):
-                    count += 1
-                    continue
-                out_folder_path = os.path.join(folder_path, 'OUT.ABACUS')
-                if not os.path.exists(out_folder_path):
-                    continue
-                if 'istate.info' in os.listdir(out_folder_path):
-                    count += 1
-                    os.chdir(folder_path)
-                    with open('FINISHED', 'w') as f:
-                        f.write('')
-                    if clean_files_flag:
-                        clean_common_files(common_folder_path=common_folder_path, sub_cooking_path=folder_path)
-                        clean_out_files(out_folder_path='OUT.ABACUS', rm_out_files_list=rm_out_files_list)
-                    os.chdir(cwd_)
-
-    return count
 
 
 def split_database(db_path, output_prefix, structures_per_split):
@@ -200,7 +170,7 @@ def prepare_job_directories(db_src_path, common_folder_path, cooking_path, pp_or
             os.makedirs(job_dir, exist_ok=True)
             os.chdir(job_dir)
             write_abacus(os.path.join(job_dir, 'STRU'), an_atoms, scaled=False,
-             pp=pp_orb_info['pp'],basis=pp_orb_info['basis'])
+                         pp=pp_orb_info['pp'], basis=pp_orb_info['basis'])
 
             for item in os.listdir(common_folder_path):
                 if os.path.exists(item):
@@ -219,11 +189,12 @@ def prepare_job_directories(db_src_path, common_folder_path, cooking_path, pp_or
 
 
 def create_local_handler_file(n_parallel_jobs,
-                              cmd_line,
                               pp_orb_info,
+                              cmd_line,
+                              prep_with_abacus_test_cmd=None,
                               common_folder_path='public',
                               local_db_name='sub_structures.db',
-                              clean_files_flag=False, 
+                              clean_files_flag=False,
                               rm_out_files_list=[],
                               output_file='local_handler.py'):
     """
@@ -234,6 +205,7 @@ def create_local_handler_file(n_parallel_jobs,
         common_folder_path: Path to the common folder.
         cmd_line: Command line string to be executed.
         pp_orb_info: info for pp and orb.
+        prep_with_abacus_test_cmd: command to call abacus-test to prepare local workbase.
         local_db_name: Name or path of the local database. (Default: 'sub_structures.db')
         clean_files_flag: Boolean flag to indicate whether to clean files. (Default: False)
         rm_out_files_list: List of output files to be removed. (Default: [])
@@ -257,18 +229,19 @@ run_jobs_locally(
     cmd_line='{cmd_line}',
     clean_files_flag={clean_files_flag},
     pp_orb_info={pp_orb_info},
+    prep_with_abacus_test_cmd="{prep_with_abacus_test_cmd}",
     rm_out_files_list={rm_out_files_list}
 )
 """
     # Write the formatted content to the specified file
     with open(output_file, 'w') as f:
         f.write(file_content)
-    print(f"File generated: {output_file}")
 
 
-def run_jobs_locally(n_parallel_jobs, cmd_line, 
+def run_jobs_locally(n_parallel_jobs, cmd_line,
                      common_folder_path,
                      pp_orb_info,
+                     prep_with_abacus_test_cmd=None,
                      clean_files_flag=False,
                      local_db_name='sub_structures.db',
                      rm_out_files_list: list = [],):
@@ -278,12 +251,19 @@ def run_jobs_locally(n_parallel_jobs, cmd_line,
     common_folder_path = os.path.abspath(common_folder_path)
     prepare_job_directories(db_src_path=local_db_name, common_folder_path=common_folder_path, cooking_path=cooking_path, pp_orb_info=pp_orb_info)
 
-    n_total_jobs = 0
     job_queue = Queue()
+    job_folder_path_list = []
     for a_job_folder in os.listdir(cooking_path):
         abs_job_folder = os.path.join(cooking_path, a_job_folder)
         job_queue.put(abs_job_folder)
-        n_total_jobs = n_total_jobs + 1
+        job_folder_path_list.append(abs_job_folder)
+    n_total_jobs = len(job_folder_path_list)
+
+    if prep_with_abacus_test_cmd is not None:
+        prep_with_abacus_test_cmd = prep_with_abacus_test_cmd + ' -j'
+        for a_job_folder_path in job_folder_path_list:
+            prep_with_abacus_test_cmd = prep_with_abacus_test_cmd + ' ' + a_job_folder_path
+        os.system(prep_with_abacus_test_cmd)
 
     # Dictionary to keep track of active jobs
     active_jobs = {}
@@ -293,24 +273,17 @@ def run_jobs_locally(n_parallel_jobs, cmd_line,
         active_jobs[job_folder] = submit_job(job_folder, cmd_line)
 
     # Start monitoring thread
-    monitor_thread = Thread(target=monitor_jobs, args=(job_queue, active_jobs, cmd_line), daemon=True)
+    monitor_thread = Thread(target=monitor_jobs, args=(job_queue, active_jobs, cmd_line, clean_files_flag, rm_out_files_list), daemon=True)
     monitor_thread.start()
 
-    start_time = datetime.now()
-    prev_completed_jobs = 0
     os.chdir(cwd_)
-    # Keep the script running
+    start_time = datetime.now()
     while not job_queue.empty() or active_jobs:
         time.sleep(10)
-        completed_jobs = chk_finished_jobs(cooking_path, common_folder_path, clean_files_flag, rm_out_files_list)
-        elapsed_time = (datetime.now() - start_time).total_seconds()
-        remaining_jobs = n_total_jobs - completed_jobs
-        if completed_jobs > prev_completed_jobs:
-            prev_completed_jobs = completed_jobs
-            avg_time_per_job = elapsed_time / completed_jobs
-            estimated_remaining_time = avg_time_per_job * remaining_jobs
-            logging.info(
-                f"Completed {completed_jobs}/{n_total_jobs} jobs. Estimated remaining time: {estimated_remaining_time / 3600:.2f} hours.")
+        n_completed_jobs = 0
+        for root, dirs, files in os.walk(cooking_path):
+            n_completed_jobs += files.count('FINISHED')
+        log_remaining_time(start_time=start_time, n_completed_jobs=n_completed_jobs, n_total_jobs=n_total_jobs)
 
 
 def run_jobs_remotely(n_parallel_machines, resrc_info, machine_info, local_job_para, db_src_path, common_folder_path, pp_orb_info_path, id_name=None):
@@ -351,9 +324,9 @@ def run_jobs_remotely(n_parallel_machines, resrc_info, machine_info, local_job_p
             with connect('sub_structures.db') as sub_db:
                 start_index = i * sub_n_mols
                 end_index = (i + 1) * sub_n_mols if i < actual_machine_used - 1 else len(random_idx_list)
-                indices_for_sub = random_idx_list[start_index:end_index] # Slice the random index list for the current sub
+                indices_for_sub = random_idx_list[start_index:end_index]  # Slice the random index list for the current sub
                 for real_idx in indices_for_sub:
-                    for a_row in src_db.select(id=real_idx+1):
+                    for a_row in src_db.select(id=real_idx + 1):
                         pass
                     an_atoms = a_row.toatoms()  # Convert the data row to 'atoms' object
                     if id_name:
