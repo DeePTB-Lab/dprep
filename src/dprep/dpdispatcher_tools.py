@@ -13,6 +13,7 @@ from ase.db.core import connect
 from ase.io.abacus import write_abacus
 from dpdispatcher import Task, Submission, Machine, Resources
 from dprep.get_pp_orb_info import generate_pp_orb_dict
+from dprep.post_analysis_tools import copy_failed_folders
 
 # Configure logging to file 'job_monitor.log'
 logging.basicConfig(filename='job_monitor.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -343,7 +344,7 @@ def run_jobs_remotely(n_parallel_machines, resrc_info, machine_info, local_job_p
                             an_id = a_row.data[id_name]
                         sub_db.write(an_atoms, hpc_id=an_id)
                     else:
-                        sub_db.write(an_atoms, hpc_id=f'id_{real_idx}')
+                        sub_db.write(an_atoms, hpc_id=f'db_seq_id_{real_idx}')
 
             # task
             a_task = Task(
@@ -362,3 +363,10 @@ def run_jobs_remotely(n_parallel_machines, resrc_info, machine_info, local_job_p
         task_list=task_list,
     )
     submission.run_submission()
+    copy_failed_folders(
+        source_dir=cooking_path,
+        target_folder_name='OUT.ABACUS',
+        check_file_name='istate.info',
+        id_prefix=id_name,
+        dump_dir=os.path.join(cwd_, 'failed_jobs')
+    )
