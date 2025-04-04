@@ -829,6 +829,7 @@ def plot_band_comparisons(
                 continue
 
             fig, ax = plt.subplots(figsize=(6, 5))
+            fermi_ylim_list = []
             # Plot all job types
             plotted_labels = set()  # To avoid duplicate legend entries
             for job_type in job_types:
@@ -866,6 +867,7 @@ def plot_band_comparisons(
 
                 # Add Fermi level horizontal line relative to VBM
                 fermi_relative_to_vbm = efermi - e_vbm_max
+                fermi_ylim_list.append(fermi_relative_to_vbm - 2)
 
                 if band_idx:
                     x_min, x_max = 0, band_idx[-1][1]
@@ -873,7 +875,7 @@ def plot_band_comparisons(
                             linestyle=':', color=color, linewidth=1.2, alpha=0.7)
 
             if band_idx: ax.set_xlim(0, band_idx[-1][1])  # Use max k index from rearrange
-            ax.set_ylim(plot_ylim[0], plot_ylim[1])
+            ax.set_ylim(min(plot_ylim[0], min(fermi_ylim_list)), plot_ylim[1])
             if symbols is not None and symbol_index is not None and len(symbol_index) == len(symbols):
                 ax.set_xticks(symbol_index)
                 ax.set_xticklabels(symbols)
