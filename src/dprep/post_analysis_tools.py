@@ -797,7 +797,7 @@ def plot_band_comparisons(
             # Use data from the first job type as reference shape for rearrange_plotdata
             bands_ref = data[f'bands_{job_types[0]}']  # Bands already in eV if processed correctly
             e_vbm_max_ref = data[f'e_vbm_max_{job_types[0]}']
-
+            n_occupied_bands = data[f'n_occupied_bands_{job_types[0]}']
             # Ensure kpt_lines_ref is usable
             if kpt_lines_ref is None or kpt_lines_ref.size == 0 or (
                     kpt_lines_ref.ndim > 0 and kpt_lines_ref[0] is None):
@@ -830,6 +830,7 @@ def plot_band_comparisons(
 
             fig, ax = plt.subplots(figsize=(6, 5))
             fermi_ylim_list = []
+            cbm_max_ylim_list = []
             # Plot all job types
             plotted_labels = set()  # To avoid duplicate legend entries
             for job_type in job_types:
@@ -848,6 +849,8 @@ def plot_band_comparisons(
 
                 # Plot bands relative to VBM instead of Fermi level
                 bands_shifted = bands - e_vbm_max
+                cbm_max = float(max(bands_shifted[n_occupied_bands]))
+                cbm_max_ylim_list.append(cbm_max + 2)
                 for band_num, iband in enumerate(bands_shifted):
                     label_to_use = label_base if (label_base not in plotted_labels and band_num == 0) else ""
                     if label_to_use: plotted_labels.add(label_base)
@@ -875,7 +878,7 @@ def plot_band_comparisons(
                             linestyle=':', color=color, linewidth=1.2, alpha=0.7)
 
             if band_idx: ax.set_xlim(0, band_idx[-1][1])  # Use max k index from rearrange
-            ax.set_ylim(min(plot_ylim[0], min(fermi_ylim_list)), plot_ylim[1])
+            ax.set_ylim(min(plot_ylim[0], min(fermi_ylim_list)), max(plot_ylim[1], max(cbm_max_ylim_list)))
             if symbols is not None and symbol_index is not None and len(symbol_index) == len(symbols):
                 ax.set_xticks(symbol_index)
                 ax.set_xticklabels(symbols)
