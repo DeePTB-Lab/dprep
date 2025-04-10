@@ -942,6 +942,45 @@ def round_sig(x, sig=3):
     return round(x, sig - int(np.floor(np.log10(abs(x)))) - 1)
 
 
+def find_failed_jobs_directories(start_path):
+    """
+    Find all directories named 'failed_jobs' and check if they have content.
+    If they have content, print their absolute paths.
+    """
+    # Ensure the starting path exists
+    if not os.path.exists(start_path):
+        print(f"Error: Path '{start_path}' does not exist")
+        return
+
+    # Counters
+    empty_count = 0
+    non_empty_count = 0
+
+    print(f"Starting to search for 'failed_jobs' directories under '{start_path}'...")
+
+    # Walk through the directory tree
+    for root, dirs, files in os.walk(start_path):
+        # Check if the current directory contains a subdirectory named 'failed_jobs'
+        if 'failed_jobs' in dirs:
+            failed_jobs_path = os.path.join(root, 'failed_jobs')
+
+            # Check if this directory has content
+            has_content = False
+
+            # Check for files or subdirectories
+            failed_jobs_files = os.listdir(failed_jobs_path)
+            if failed_jobs_files:
+                has_content = True
+                non_empty_count += 1
+                print(f"Non-empty failed_jobs directory: {failed_jobs_path}")
+            else:
+                empty_count += 1
+
+    print(f"\nSearch completed. Found {empty_count + non_empty_count} 'failed_jobs' directories:")
+    print(f"- Directories with content: {non_empty_count}")
+    print(f"- Empty directories: {empty_count}")
+
+
 # Helper function for ASE DB lookup (using 'with', no close needed)
 def get_element_info(ase_db_path: str, id_name: str, id_prefix: str, symbol_to_z_global: dict):
     """
