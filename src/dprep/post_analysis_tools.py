@@ -25,7 +25,7 @@ from reportlab.pdfgen import canvas
 from svglib.svglib import svg2rlg
 from reportlab.graphics import renderPDF
 # --- AbacusTest Imports ---
-from abacustest.lib_model.model_012_band import PostBand, ReadInput, ReadKpt
+
 
 # =============================================================================
 # Constants
@@ -418,6 +418,7 @@ def _extract_band_data(job_dir_path: Path, target_band_file: str = "BANDS_1.dat"
                              target_log_nscf: str = "running_nscf.log",
                              inputfile_name: str = "INPUT.nscf",
                              kptfile_name: str = "KPT.nscf"):
+    from abacustest.lib_model.model_012_band import PostBand, ReadInput, ReadKpt
     """
     Internal helper: Extracts band data for a single ABACUS job directory.
     Finds standard INPUT, KPT, OUT.*, band and log files.
@@ -740,6 +741,8 @@ def plot_band_comparisons(
         plot_filename_suffix: str = '_compare.png',
         force_replot: bool = False
 ):
+    from abacustest.lib_model.model_012_band import PostBand, ReadInput, ReadKpt
+
     plot_data_path = Path(plot_data_dir)
     pics_path = Path(pics_dir)
     pics_path.mkdir(parents=True, exist_ok=True)
