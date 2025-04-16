@@ -28,7 +28,7 @@ resrc_para = {
         "OMP_STACKSIZE": "4G",
         "OMP_NUM_THREADS": "1",
         "OMP_MAX_ACTIVE_LEVELS": "1",
-        "MKL_NUM_THREADS": "3"
+        "MKL_NUM_THREADS": "1"
     },
 }
 
