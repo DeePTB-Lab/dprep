@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/DeePTB-Lab/dprep/compare/v1.3.0...v1.4.0) (2025-04-16)
+
+
+### Features
+
+* publish pypi ([6917671](https://github.com/DeePTB-Lab/dprep/commit/69176715e48dee028eef80c96cc981b2502cfe2f))
+
 ## [1.3.0](https://github.com/DeePTB-Lab/dprep/compare/v1.2.0...v1.3.0) (2025-04-16)
 
 
