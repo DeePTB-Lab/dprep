@@ -260,7 +260,7 @@ def run_jobs_locally(n_parallel_jobs, cmd_line,
         job_folder_path_list.append(abs_job_folder)
     n_total_jobs = len(job_folder_path_list)
 
-    if prep_with_abacus_test_cmd is not None:
+    if prep_with_abacus_test_cmd not in (None, 'None'):
         prep_with_abacus_test_cmd = prep_with_abacus_test_cmd + ' -j'
         for a_job_folder_path in job_folder_path_list:
             prep_with_abacus_test_cmd = prep_with_abacus_test_cmd + ' ' + a_job_folder_path
