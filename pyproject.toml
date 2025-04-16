@@ -38,7 +38,7 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["dprep"]
+packages = ["deeprep"]
 
 [project.urls]
 "Homepage" = "https://github.com/DeePTB-Lab/dprep"
