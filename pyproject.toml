@@ -1,9 +1,48 @@
 [build-system]
-# AVOID CHANGING REQUIRES: IT WILL BE UPDATED BY PYSCAFFOLD!
-requires = ["setuptools>=46.1.0", "setuptools_scm[toml]>=5"]
+requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools_scm]
-# For smarter version schemes and other configuration options,
-# check out https://github.com/pypa/setuptools_scm
-version_scheme = "no-guess-dev"
+[project]
+name = "dprep"
+dynamic = ["version"]
+description = "DPDispatcher REciPe for the Dataset PREParation of DeepTB."
+readme = "README.md"
+authors = [
+    {name = "Liu Mingkang", email = "1660810667@qq.com"}
+]
+requires-python = ">=3.8"
+license = {file = "LICENSE.txt"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Science/Research",
+]
+dependencies = [
+    "ase",
+    "dpdispatcher",
+    "pandas",
+    "numpy",
+    "matplotlib",
+    "reportlab",
+    "svglib",
+]
+
+[tool.setuptools.dynamic]
+version = {file = ["version.txt"]}
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "black",
+    "flake8",
+]
+
+[tool.setuptools]
+packages = ["dprep"]
+
+[project.urls]
+"Homepage" = "https://github.com/DeePTB-Lab/dprep"
+"Bug Tracker" = "https://github.com/DeePTB-Lab/dprep/issues"
+
+[tools.poetry.dependencies]
+abacustest = {git = "https://github.com/pxlxingliang/abacus-test.git"}
