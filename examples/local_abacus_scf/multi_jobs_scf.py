@@ -32,6 +32,7 @@ resrc_para = {
     },
 }
 
+
 run_jobs_remotely(n_parallel_machines=n_parallel_machines, resrc_info=resrc_para, machine_info=mach_para,
                   db_src_path=r'test_4_structures.db',
                   common_folder_path=os.path.join(local_root, 'public'),
