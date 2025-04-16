@@ -3,7 +3,7 @@ requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "dprep"
+name = "deeprep"
 dynamic = ["version"]
 description = "DPDispatcher REciPe for the Dataset PREParation of DeepTB."
 readme = "README.md"
@@ -38,7 +38,7 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["deeprep"]
+packages = ["dprep"]
 
 [project.urls]
 "Homepage" = "https://github.com/DeePTB-Lab/dprep"
