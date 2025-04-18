@@ -8,6 +8,8 @@ import traceback
 from collections import defaultdict, namedtuple, Counter # Added Counter
 from pathlib import Path
 import math # Added math
+from scipy.special import erf
+from scipy.optimize import brentq, minimize_scalar
 
 import pandas as pd
 import numpy as np
@@ -351,7 +353,94 @@ def calculate_band_errors(bands1_shifted, bands2_shifted, band_indices):
     return BandErrorMetrics(mae=mae, rmse=rmse, max_ae=max_ae)
 
 
-def quantify_band_error(bands1, e_vbm_max1, bands2, e_vbm_max2, vbm_index, num_valence_near_ef=5, num_conduction_near_ef=5):
+def delta_band(band_energy1, band_energy2, n_elec, wk, smearing, smearing_sigma, efermi_shift = 0, return_all = False):
+    '''
+    Calculate the "distance" between two band structures.
+    Parameters
+    ----------
+        band_energy1, band_energy2 : list
+            Nested lists that contain the band energies.
+            band_energy[ispin][ik][iband] specifies the band energy of a state.
+        wk : list
+            Weight of k-points.
+        n_elec : float or tuple
+            Total number of electrons used to determine the Fermi level.
+            If it is a tuple, the first element is for band_energy1 and
+            the second is for band_energy2.
+        smearing : str
+            Smearing method, can be 'gaussian' or 'fermi-dirac'
+        smearing_sigma : float
+            Smearing parameter.
+        efermi_shift : float
+            Energy shift of the Fermi level.
+        return_all : bool
+            If True, return a tuple (eta, efermi1, efermi2, omega) where
+            eta is the distance, efermi1 and efermi2 are the Fermi levels,
+            and omega is the optimized energy shift.
+            If False, return only eta.
+    '''
+    # occupation function
+    def f_occ(x, x0):
+        if smearing == 'gaussian':
+            return 0.5 * (1.0 - erf((x - x0) / smearing_sigma)) \
+                if smearing_sigma > 0 else 0.5 * (1 - np.sign(x - x0))
+        elif smearing == 'fermi-dirac':
+            return 1.0 / (1.0 + np.exp((x - x0) / smearing_sigma)) \
+                if smearing_sigma > 0 else 0.5 * (1 - np.sign(x - x0))
+        else:
+            raise ValueError('Unknown smearing method: %s'%smearing)
+    def efermi(wk, be, n_elec):
+        _nmax = np.sum(wk * f_occ(be, np.max(be)))
+        _delta = (_nmax - n_elec) / n_elec
+        if np.abs(_delta) < 1e-4 or np.abs(_delta * n_elec) <= 0.01: # 0.1% error: the case where all bands are occupied
+            print(f"WARNING: all bands are occupied in band_energy1, error of this estimation: {_delta:.4%}")
+            return np.max(be)
+        else: # if error is too large, let it directly fail
+            if _delta < 0:
+                raise ValueError(f"""WARNING: maximum possible number of electrons in band structure not-enough:
+{n_elec:.4f} vs. {_nmax:.4f} (nelec vs. nmax). This is always because of too small basis size and all
+bands are occupied, otherwise please check your data.""")
+            return brentq(lambda x: np.sum(wk * f_occ(be, x)) - n_elec, np.min(be), np.max(be))
+
+    min_n_band = min(band_energy1.shape[0], band_energy2.shape[0])
+    band_energy1 = band_energy1[:min_n_band]
+    band_energy2 = band_energy2[:min_n_band]
+
+    # convert to arrays for convenience
+    be1 = np.expand_dims(band_energy1.T, 0)
+    be2 = np.expand_dims(band_energy2.T, 0)
+    # convert spinless weight to the one with spin
+    nspin = len(be1)
+    wk = [1] * band_energy1.shape[1]
+    wk = np.array(wk).reshape(1, len(wk), 1) * (2 / nspin)
+    wk = 2 * wk/np.sum(wk) # normalize the weight
+    n_elec1, n_elec2 = n_elec if isinstance(n_elec, tuple) else (n_elec, n_elec)
+    # if be1.shape != be2.shape:
+    #     raise TypeError(f'Error: Inconsistent shape between two band structures: {be1.shape} vs {be2.shape}.')
+    # assert be1.shape[1] == wk.shape[1]
+    assert smearing_sigma >= 0 and n_elec1 > 0 and n_elec2 > 0
+    # determine the Fermi levels for two band structures by root finding
+    efermi1 = efermi(wk, be1, n_elec1)
+    efermi2 = efermi(wk, be2, n_elec2)
+    # geometrically averaged occupation (under shifted Fermi level)
+    f_avg = np.sqrt(f_occ(be1, efermi1 + efermi_shift) * f_occ(be2, efermi2 + efermi_shift))
+    res = minimize_scalar(lambda omega: np.sum(wk * f_avg * (be1 - be2 + omega)**2), \
+            (-10, 10), method='brent')
+    omega = res.x
+    eta = np.sqrt(res.fun / np.sum(wk * f_avg))
+    eta_max = np.max(np.abs(be1 - be2 + omega))
+    # for ispin in range(nspin):
+    #     for ik in range(len(be1[ispin])):
+    #         delta = np.array(be1[ispin][ik]) - np.array(be2[ispin][ik]) + omega
+    #         # zval = 19, natom = 4, nocc = 19*2 = 38
+    #         if np.linalg.norm(delta, np.inf)*1e3 > 100:
+    #             print(f_occ(be1, efermi1 + efermi_shift)[ispin][ik], delta)
+    #             print(ispin, ik, np.linalg.norm(delta, np.inf))
+    return (eta, eta_max) if not return_all else (eta, eta_max, efermi1, efermi2, omega)
+
+
+def quantify_band_error(bands1, e_vbm_max1, bands2, e_vbm_max2, vbm_index,
+                        num_valence_near_ef=5, num_conduction_near_ef=5, smearing='gaussian', smearing_sigma=0.002):
     """
     Quantifies the error between two band structures.
     (Code as provided in the original script - adapted for shape check/VBM warning)
@@ -360,6 +449,28 @@ def quantify_band_error(bands1, e_vbm_max1, bands2, e_vbm_max2, vbm_index, num_v
     if bands1.shape[1] != bands2.shape[1]:
          print(f"Error: K-point number mismatch! {bands1.shape[1]} vs {bands2.shape[1]}")
          return None
+    n_elec = (vbm_index + 1) * 2
+    eta, eta_max = delta_band(
+        band_energy1=bands1,
+        band_energy2=bands2,
+        n_elec=n_elec,
+        wk=[],
+        smearing='gaussian',
+        smearing_sigma=0.002,
+        efermi_shift=0,
+        return_all=False
+    )
+
+    eta_10, eta_max_10 = delta_band(
+        band_energy1=bands1,
+        band_energy2=bands2,
+        n_elec=n_elec,
+        wk=[],
+        smearing='gaussian',
+        smearing_sigma=0.002,
+        efermi_shift=10,
+        return_all=False
+    )
 
     num_bands, num_kpoints = bands1.shape
 
@@ -377,6 +488,11 @@ def quantify_band_error(bands1, e_vbm_max1, bands2, e_vbm_max2, vbm_index, num_v
         conduction_near_ef_indices = []
 
     results = {}
+    results['eta'] = {'mae': eta}
+    results['eta_10'] = {'mae': eta_10}
+    results['eta_max'] = {'mae': eta_max}
+    results['eta_max_10'] = {'mae': eta_max_10}
+
     results['vbm_index_ref'] = vbm_index
     occupied_indices = list(range(vbm_index + 1))
     results['occupied'] = calculate_band_errors(bands1_shifted, bands2_shifted, occupied_indices)
@@ -1144,7 +1260,7 @@ def consolidate_results_for_job_type_pair(
     analysis_results = {}
 
     # Dictionary to store MAE values for different metrics by element
-    metric_keys = ['near_ef', 'occupied', 'all_band', 'n_occupied_and_0.5n_un_occupied', 'n_occupied_and_3_un_occupied']
+    metric_keys = ['near_ef', 'occupied', 'all_band', 'n_occupied_and_0.5n_un_occupied', 'n_occupied_and_3_un_occupied', 'eta', 'eta_10', 'eta_max', 'eta_max_10']
     element_metrics = {key: {} for key in metric_keys}
 
     npz_files = sorted(list(plot_data_path.glob(f"{id_prefix}*.npz")))
@@ -1198,7 +1314,7 @@ def consolidate_results_for_job_type_pair(
             'formula': formula,
             'z': z,
             'symbol': symbol,
-            'mae': mae_values['near_ef'],  # Primary MAE for sorting
+            'mae': mae_values['eta'],  # Primary MAE for sorting
             'plot_path': svg_path_final,
             'mae_values': mae_values
         }
@@ -1241,7 +1357,11 @@ def consolidate_results_for_job_type_pair(
         'occupied': f"Occupied Bands MAE ({comp_jt} vs {ref_jt})",
         'all_band': f"All Bands MAE ({comp_jt} vs {ref_jt})",
         'n_occupied_and_0.5n_un_occupied': f"Occ + 0.5×Unocc Bands MAE ({comp_jt} vs {ref_jt})",
-        'n_occupied_and_3_un_occupied': f"Occ + 3 Unocc Bands MAE ({comp_jt} vs {ref_jt})"
+        'n_occupied_and_3_un_occupied': f"Occ + 3 Unocc Bands MAE ({comp_jt} vs {ref_jt})",
+        'eta': f"$\\eta_v$ (Valence Bands) MAE ({comp_jt} vs {ref_jt})",
+        'eta_10': f"$\\eta_{{10}}$ (Valence + Conduction up to 10 eV) MAE ({comp_jt} vs {ref_jt})",
+        'eta_max': f"max $\\eta$ (Maximum Band Difference) ({comp_jt} vs {ref_jt})",
+        'eta_max_10': f"max $\\eta_{{10}}$ (Maximum Band Difference up to 10 eV) ({comp_jt} vs {ref_jt})"
     }
 
     for metric_key in metric_keys:
@@ -1285,7 +1405,7 @@ def create_consolidated_mae_reports(all_pairs_element_metrics, master_summary_pa
         master_summary_path (Path): Path to master summary directory
     """
     # Process the near_ef metric for the main comparison
-    all_pairs_element_mae = {pair: metrics['near_ef'] for pair, metrics in all_pairs_element_metrics.items()}
+    all_pairs_element_mae = {pair: metrics['eta'] for pair, metrics in all_pairs_element_metrics.items()}
 
     # Create main consolidated CSV with all pairs' element MAE data
     consolidated_csv_path = master_summary_path / "all_pairs_element_mae.csv"

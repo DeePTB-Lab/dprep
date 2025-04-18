@@ -25,6 +25,7 @@ dependencies = [
     "matplotlib",
     "reportlab",
     "svglib",
+    "scipy",
 ]
 
 [tool.setuptools.dynamic]
