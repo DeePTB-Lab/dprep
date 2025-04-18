@@ -523,38 +523,63 @@ def merge_svgs_to_pdf(svg_files, output_pdf):
     print(f"PDF saved to: {output_pdf}")
 
 
-def copy_failed_folders(source_dir, target_folder_name, check_file_name, id_prefix, dump_dir):
-    """(Code as provided in the original script)"""
-    source_path = Path(source_dir); dump_path = Path(dump_dir)
-    if not source_path.is_dir(): print(f"Error: Source directory '{source_dir}' not found."); return
-    if id_prefix is None: id_prefix = "db_seq_id_"
-    dump_path.mkdir(parents=True, exist_ok=True)
-    print(f"Searching in:           {source_path}"); print(f"Looking for folders:    {target_folder_name}")
-    print(f"Checking for absence of:{check_file_name} inside {target_folder_name}"); print(f"Identifying parent with: '{id_prefix}'")
-    print(f"Copying qualifying parents to: {dump_path}"); print("-" * 20)
-    found_target_folder_count = 0; copied_parent_count = 0
-    for potential_folder in source_path.rglob(target_folder_name):
-        if potential_folder.is_dir() and potential_folder.name == target_folder_name:
-            found_target_folder_count += 1; # print(f"Found potential folder: {potential_folder}")
-            parent_folder = potential_folder.parent
-            if parent_folder.name.startswith(id_prefix):
-                # print(f"  Parent '{parent_folder.name}' matches prefix '{id_prefix}'.")
-                file_to_check = potential_folder / check_file_name
-                if not file_to_check.is_file():
-                    print(f"  -> File '{check_file_name}' NOT found inside {potential_folder.name}.")
-                    parent_folder_to_copy = parent_folder; destination_path = dump_path / parent_folder_to_copy.name
-                    if destination_path.exists(): print(f"  -> Skipped: Destination '{destination_path}' already exists.")
-                    else:
-                        try:
-                            print(f"  -> Copying parent folder '{parent_folder_to_copy.name}' to '{dump_path}'...")
-                            shutil.copytree(parent_folder_to_copy, destination_path); copied_parent_count += 1
-                            print(f"  -> Successfully copied '{parent_folder_to_copy.name}'.")
-                        except Exception as e: print(f"  -> Error copying {parent_folder_to_copy} to {destination_path}: {e}")
-                # else: print(f"  -> File '{check_file_name}' found inside. Skipping copy.")
-    print("-" * 20); print(f"Search complete.")
-    print(f"Found {found_target_folder_count} folder(s) named '{target_folder_name}'.")
-    print(f"Copied {copied_parent_count} parent folder(s) (matching '{id_prefix}' prefix and missing '{check_file_name}') to '{dump_path}'.")
-    if copied_parent_count == 0: print('No errors found matching criteria.')
+def copy_failed_folders(source_dir, target_folder_name, check_file_name, dump_dir):
+    """
+    Recursively search through `source_dir` for folders named `target_folder_name`.
+    If such a folder is found and does NOT contain the file `check_file_name`,
+    copy its parent directory (considered the subtask ID) to `dump_dir`.
+
+    Parameters:
+        source_dir (str or Path): The root directory to start the search from.
+        target_folder_name (str): The name of the folder to look for.
+        check_file_name (str): The file whose presence is checked inside the target folder.
+        dump_dir (str or Path): The destination directory to copy the parent folders into.
+    """
+    source_dir = Path(source_dir)
+    dump_dir = Path(dump_dir)
+    if not source_dir.is_dir():
+        print(f"Error: Source directory '{source_dir}' does not exist.")
+        return
+
+    dump_dir.mkdir(parents=True, exist_ok=True)
+
+    found_count = 0
+    copied_count = 0
+
+    print(f"Searching in: {source_dir}")
+    print(f"Looking for folders named: '{target_folder_name}'")
+    print(f"Checking for absence of file: '{check_file_name}' inside those folders")
+    print(f"Copying the parent folder (subtask ID) to: {dump_dir}")
+    print("-" * 40)
+
+    for root, dirs, files in os.walk(source_dir):
+        # If the current directory name matches the target
+        if os.path.basename(root) == target_folder_name:
+            found_count += 1
+            folder_path = Path(root)
+            parent_folder = folder_path.parent  # The subtask folder (one level up)
+            task_id = parent_folder.name
+
+            # Check if the file is missing
+            if check_file_name not in os.listdir(folder_path):
+                print(f"  · Missing file '{check_file_name}' in: {folder_path}")
+                destination = dump_dir / task_id
+
+                if destination.exists():
+                    print(f"    - Skipped: destination '{destination}' already exists.")
+                else:
+                    try:
+                        shutil.copytree(parent_folder, destination)
+                        copied_count += 1
+                        print(f"    - Successfully copied to: '{destination}'")
+                    except Exception as e:
+                        print(f"    - Failed to copy: {e}")
+
+    print("\n" + "-" * 40)
+    print(f"Found {found_count} folders named '{target_folder_name}'.")
+    print(f"Copied {copied_count} parent folders to '{dump_dir}'.")
+    if copied_count == 0:
+        print("No missing files found, nothing was copied.")
 
 
 def find_copy_rename_recursive(source_dir, filename_to_find, dest_dir, id_prefix):
@@ -982,6 +1007,46 @@ def find_failed_jobs_directories(start_path):
     print(f"\nSearch completed. Found {empty_count + non_empty_count} 'failed_jobs' directories:")
     print(f"- Directories with content: {non_empty_count}")
     print(f"- Empty directories: {empty_count}")
+
+
+def rescue_jobs(log_file_path="dpdispatcher.log", output_dir="./rescue"):
+    """
+    Extract job IDs from dpdispatcher.log and download them for rescue
+
+    Args:
+        log_file_path: Path to the dpdispatcher log file
+        output_dir: Directory to save rescued jobs
+    """
+    # Extract job IDs using regex pattern
+    job_ids = []
+    pattern = r'job_id is (\d+):'
+
+    with open(log_file_path, 'r') as file:
+        for line in file:
+            if 'job_id is' in line:
+                match = re.search(pattern, line)
+                if match:
+                    job_id = match.group(1)
+                    job_ids.append(job_id)
+
+    print(f"Found {len(job_ids)} job IDs: {', '.join(job_ids) if job_ids else 'None'}")
+
+    # Create rescue directory and download jobs
+    if job_ids:
+        os.makedirs(output_dir, exist_ok=True)
+        current_dir = os.getcwd()
+        os.chdir(output_dir)
+
+        # Download jobs using lbg command
+        download_cmd = 'lbg job download ' + ' '.join(job_ids)
+        print(f"Executing: {download_cmd}")
+        os.system(download_cmd)
+
+        # Return to original directory
+        os.chdir(current_dir)
+        print(f"Jobs downloaded to {os.path.abspath(output_dir)}")
+
+    return job_ids
 
 
 # Helper function for ASE DB lookup (using 'with', no close needed)

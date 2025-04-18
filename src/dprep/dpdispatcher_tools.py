@@ -367,6 +367,5 @@ def run_jobs_remotely(n_parallel_machines, resrc_info, machine_info, local_job_p
         source_dir=cooking_path,
         target_folder_name='OUT.ABACUS',
         check_file_name='istate.info',
-        id_prefix=id_name,
         dump_dir=os.path.join(cwd_, 'failed_jobs')
     )
