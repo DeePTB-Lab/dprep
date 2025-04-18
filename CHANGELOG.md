@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/DeePTB-Lab/dprep/compare/v1.5.0...v1.6.0) (2025-04-18)
+
+
+### Features
+
+* add eta metric for band distance ([799b616](https://github.com/DeePTB-Lab/dprep/commit/799b6167b022ae0bf72d2b4910fc1a2308d081db))
+
 ## [1.5.0](https://github.com/DeePTB-Lab/dprep/compare/v1.4.0...v1.5.0) (2025-04-18)
 
 
