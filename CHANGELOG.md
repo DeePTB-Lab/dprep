@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/DeePTB-Lab/dprep/compare/v1.4.0...v1.5.0) (2025-04-18)
+
+
+### Features
+
+* change the way to check failed jobs and add rescue function ([7529381](https://github.com/DeePTB-Lab/dprep/commit/7529381e9e981b81cb96e6f98edc49b9f2f0763e))
+
 ## [1.4.0](https://github.com/DeePTB-Lab/dprep/compare/v1.3.0...v1.4.0) (2025-04-16)
 
 
