@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.1](https://github.com/DeePTB-Lab/dprep/compare/v1.7.0...v1.7.1) (2025-04-19)
+
+
+### Bug Fixes
+
+* change parse_orbital location and fix ([6b64ab6](https://github.com/DeePTB-Lab/dprep/commit/6b64ab65511722aa4a71efeb47d283a6f0a5f0d1))
+
 ## [1.7.0](https://github.com/DeePTB-Lab/dprep/compare/v1.6.0...v1.7.0) (2025-04-19)
 
 
