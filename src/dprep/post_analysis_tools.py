@@ -67,49 +67,6 @@ BandErrorMetrics = namedtuple("BandErrorMetrics",
 CutoffData = namedtuple("CutoffData", ["bands", "efermi", "kpt_lines"])
 
 
-def parse_orbital_files(folder_path):
-    """
-    Parse orbital filenames to extract element, cutoff, and basis information
-
-    Args:
-        folder_path (str): Path to the directory containing orbital files
-
-    Returns:
-        tuple: (cutoff_dict, basis_dict) containing the extracted information
-    """
-    cutoff_dict = {}
-    basis_dict = {}
-
-    # Get all files in the directory
-    try:
-        files = os.listdir(folder_path)
-    except FileNotFoundError:
-        print(f"Error: Folder '{folder_path}' not found.")
-        return {}, {}
-    except PermissionError:
-        print(f"Error: No permission to access folder '{folder_path}'.")
-        return {}, {}
-
-    # More flexible pattern that makes "gga" optional but requires underscore after element
-    pattern = r"([A-Za-z]+)_(?:gga_)?(\d+)au_(\d+\.\d+|\d+)Ry_(\w+)\.orb"
-
-    for file in files:
-        match = re.match(pattern, file)
-        if match:
-            element = match.group(1)
-            au_value = match.group(2)  # Uncomment if you need this value
-            # cutoff = float(match.group(3))
-            basis = match.group(4)
-
-            # Store the cutoff value
-            cutoff_dict[element] = au_value
-
-            # Store the basis value
-            basis_dict[element] = basis
-
-    return cutoff_dict, basis_dict
-
-
 # =============================================================================
 # Visualization Functions
 # =============================================================================
