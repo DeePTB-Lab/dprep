@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.0](https://github.com/DeePTB-Lab/dprep/compare/v1.6.0...v1.7.0) (2025-04-19)
+
+
+### Features
+
+* add parallel dptb submission support ([ac814fa](https://github.com/DeePTB-Lab/dprep/commit/ac814fae0db7338d589902a52699e62a5ff5ed9d))
+
 ## [1.6.0](https://github.com/DeePTB-Lab/dprep/compare/v1.5.0...v1.6.0) (2025-04-18)
 
 
