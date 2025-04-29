@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.0](https://github.com/DeePTB-Lab/dprep/compare/v1.7.1...v1.8.0) (2025-04-29)
+
+
+### Features
+
+* add support for custom kpoint ([520619e](https://github.com/DeePTB-Lab/dprep/commit/520619e8857aa8b2f079a4f2f0d60df92cc27035))
+
 ## [1.7.1](https://github.com/DeePTB-Lab/dprep/compare/v1.7.0...v1.7.1) (2025-04-19)
 
 
