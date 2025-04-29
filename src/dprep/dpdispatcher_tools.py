@@ -8,12 +8,13 @@ import time
 from datetime import datetime
 from queue import Queue
 from threading import Thread
+import numpy as np
 
 from ase.db.core import connect
 from ase.io.abacus import write_abacus
 from dpdispatcher import Task, Submission, Machine, Resources
 from dprep.get_pp_orb_info import generate_pp_orb_dict
-from dprep.post_analysis_tools import copy_failed_folders
+from dprep.post_analysis_tools import copy_failed_folders, save_direct_kpoints
 
 # Configure logging to file 'job_monitor.log'
 logging.basicConfig(filename='job_monitor.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -160,7 +161,7 @@ def modify_input_file(parameters):
         f.writelines(modified_lines)
 
 
-def prepare_job_directories(db_src_path, common_folder_path, cooking_path, pp_orb_info):
+def prepare_job_directories(db_src_path, common_folder_path, cooking_path, pp_orb_info, has_kpoints=False, prep_with_abacus_test_cmd=None):
     cwd_ = os.getcwd()
     os.makedirs(cooking_path, exist_ok=True)
     db_src_path = os.path.abspath(db_src_path)
@@ -172,7 +173,6 @@ def prepare_job_directories(db_src_path, common_folder_path, cooking_path, pp_or
             os.chdir(job_dir)
             write_abacus(os.path.join(job_dir, 'STRU'), an_atoms, scaled=False,
                          pp=pp_orb_info['pp'], basis=pp_orb_info['basis'])
-
             for item in os.listdir(common_folder_path):
                 if os.path.exists(item):
                     continue
@@ -181,9 +181,18 @@ def prepare_job_directories(db_src_path, common_folder_path, cooking_path, pp_or
                     shutil.copytree(src_file, item)
                 else:
                     shutil.copy2(src_file, item)  # copy2 to preserve metadata
-
             # ntype = len(set(an_atoms.get_atomic_numbers()))
             modify_input_file({})
+
+            if prep_with_abacus_test_cmd not in (None, 'None'):
+                prep_with_abacus_test_cmd = prep_with_abacus_test_cmd + f' -j ./'
+                os.system(prep_with_abacus_test_cmd)
+
+            if has_kpoints:
+                save_direct_kpoints(kpoints=a_row.data['kpoints'])
+                np.save('old_bands.npy', np.array(a_row.data['bands']))
+                os.remove('KPT.nscf')
+                shutil.copy(src='old_kpoints', dst='KPT.nscf')
 
             os.chdir(cwd_)
     return
@@ -197,6 +206,7 @@ def create_local_handler_file(n_parallel_jobs,
                               local_db_name='sub_structures.db',
                               clean_files_flag=False,
                               rm_out_files_list=[],
+                              has_kpoints=False,
                               output_file='local_handler.py'):
     """
     Create a local_handler.py file based on the provided parameters.
@@ -231,7 +241,8 @@ run_jobs_locally(
     clean_files_flag={clean_files_flag},
     pp_orb_info={pp_orb_info},
     prep_with_abacus_test_cmd="{prep_with_abacus_test_cmd}",
-    rm_out_files_list={rm_out_files_list}
+    rm_out_files_list={rm_out_files_list},
+    has_kpoints={has_kpoints}
 )
 """
     # Write the formatted content to the specified file
@@ -245,12 +256,14 @@ def run_jobs_locally(n_parallel_jobs, cmd_line,
                      prep_with_abacus_test_cmd=None,
                      clean_files_flag=False,
                      local_db_name='sub_structures.db',
-                     rm_out_files_list: list = [],):
+                     rm_out_files_list: list = [],
+                     has_kpoints=False,):
 
     cwd_ = os.getcwd()
     cooking_path = os.path.abspath('cooking')
     common_folder_path = os.path.abspath(common_folder_path)
-    prepare_job_directories(db_src_path=local_db_name, common_folder_path=common_folder_path, cooking_path=cooking_path, pp_orb_info=pp_orb_info)
+    prepare_job_directories(db_src_path=local_db_name, common_folder_path=common_folder_path, cooking_path=cooking_path,
+                            pp_orb_info=pp_orb_info, has_kpoints=has_kpoints, prep_with_abacus_test_cmd=prep_with_abacus_test_cmd)
 
     job_queue = Queue()
     job_folder_path_list = []
@@ -259,12 +272,6 @@ def run_jobs_locally(n_parallel_jobs, cmd_line,
         job_queue.put(abs_job_folder)
         job_folder_path_list.append(abs_job_folder)
     n_total_jobs = len(job_folder_path_list)
-
-    if prep_with_abacus_test_cmd not in (None, 'None'):
-        prep_with_abacus_test_cmd = prep_with_abacus_test_cmd + ' -j'
-        for a_job_folder_path in job_folder_path_list:
-            prep_with_abacus_test_cmd = prep_with_abacus_test_cmd + ' ' + a_job_folder_path
-        os.system(prep_with_abacus_test_cmd)
 
     # Dictionary to keep track of active jobs
     active_jobs = {}
@@ -342,10 +349,10 @@ def run_jobs_remotely(n_parallel_machines, resrc_info, machine_info, local_job_p
                             an_id = a_row[id_name]
                         else:
                             an_id = a_row.data[id_name]
-                        sub_db.write(an_atoms, hpc_id=an_id)
+                        hpc_id = an_id
                     else:
-                        sub_db.write(an_atoms, hpc_id=f'db_seq_id_{real_idx}')
-
+                        hpc_id = f'db_seq_id_{real_idx}'
+                    sub_db.write(an_atoms, hpc_id=hpc_id, data=a_row.data)
             # task
             a_task = Task(
                 command=fr'python local_handler.py 2>&1 ',

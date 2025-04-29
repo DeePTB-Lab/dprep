@@ -815,6 +815,68 @@ def get_atom_counts_from_elementary_db(db_file):
 
 
 # --- process_band_data and plot_band_comparisons use _extract_band_data ---
+def extract_symbols_from_kpoints(kpoints, label_dict, threshold=1e-5):
+    """
+    Extract symbol indices and symbol names from kpoints array by comparing with label_dict.
+
+    Args:
+        kpoints (list): List of k-point coordinates in direct coordinates
+        label_dict (dict): Dictionary mapping symbol names to positions
+        threshold (float): Distance threshold to consider a kpoint matching a label position
+
+    Returns:
+        tuple: (symbol_index, symbols) where:
+            - symbol_index is a list of indices where labeled points are found
+            - symbols is a list of the corresponding symbol labels
+    """
+    import numpy as np
+
+    symbol_index = []
+    symbols = []
+    last_symbol = None
+
+    # Process each kpoint
+    for i, kpt in enumerate(kpoints):
+        for label, pos in label_dict.items():
+            # Check if the kpoint is close to a labeled position
+            if np.allclose(kpt, pos, atol=threshold):
+                # Convert '\Gamma' to 'G'
+                symbol = 'G' if label == '\\Gamma' else label
+
+                # Add to the lists (only if different from the previous symbol)
+                if symbol != last_symbol:
+                    symbol_index.append(i)
+                    symbols.append(symbol)
+                    last_symbol = symbol
+                break
+
+    return symbol_index, symbols
+
+
+def save_direct_kpoints(kpoints):
+    """
+    Saves k-point data to a custom text file format and band data to a .npy file.
+
+    Args:
+        kpoints (list): A list of k-point coordinates, e.g., [[0.0, 0.0, 0.0], ...].
+                        Assumed to be in Direct coordinates.
+    """
+    # Ensure output directory exists
+    num_kpoints = len(kpoints)
+    weight = 1.0 / num_kpoints
+
+    with open('old_kpoints', 'w') as f:
+        # Write header information
+        f.write("K_POINTS\n")
+        f.write(f"{num_kpoints} //total number of k-point\n")
+        f.write("Direct //'Direct' coordinate\n")
+
+        # Write k-point coordinates and weights
+        for kpt in kpoints:
+            # Format: kx ky kz weight (using fixed precision for neatness)
+            f.write(f"{kpt[0]:.8f} {kpt[1]:.8f} {kpt[2]:.8f} {weight:.8f}\n")
+
+
 def process_band_data(
         workspace_root: str,
         plot_data_dir: str,
@@ -949,8 +1011,7 @@ def plot_band_comparisons(
                 continue
 
             # Call PostBand.rearrange_plotdata - assumes it handles None kpt_lines gracefully if it occurs
-            band_idx, symbol_index, symbols = PostBand.rearrange_plotdata(bands_ref,
-                                                                          kpt_lines_ref)  # Pass bands for shape info
+            band_idx, symbol_index, symbols = PostBand.rearrange_plotdata(bands_ref, kpt_lines_ref)  # Pass bands for shape info
 
             plot_title_id = id_name
             if db_available and ase_db_path:
