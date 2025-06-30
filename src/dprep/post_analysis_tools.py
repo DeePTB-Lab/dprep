@@ -83,19 +83,21 @@ def get_element_z_map():
 def create_periodic_heatmap(element_values, title="Periodic Table Heatmap",
                             colormap='plasma', log_scale=True, output_file=None,
                             colorbar_label="Value", missing_value_text="-",
-                            include_zero_values=True):
+                            include_zero_values=True, mode="value", text_size=7):
     """
-    Create a heatmap visualization of the periodic table with custom values.
+    Create a heatmap visualization of the periodic table with custom values or text.
 
     Args:
-        element_values (dict): Dictionary mapping element symbols to their values
+        element_values (dict): Dictionary mapping element symbols to their values or text
         title (str): Title of the plot
         colormap (str): Matplotlib colormap name to use
-        log_scale (bool): Whether to use logarithmic color scale
+        log_scale (bool): Whether to use logarithmic color scale (only for 'value' mode)
         output_file (str): Path to save the image, None to display instead
-        colorbar_label (str): Label for the colorbar
+        colorbar_label (str): Label for the colorbar (only used in 'value' mode)
         missing_value_text (str): Text to display for elements with no value
-        include_zero_values (bool): Whether to color elements with value 0
+        include_zero_values (bool): Whether to color elements with value 0 (only for 'value' mode)
+        mode (str): Display mode - "value" for numeric values or "text" for text labels
+        text_size (int): Font size for the displayed text values/labels
 
     Returns:
         tuple: (fig, ax) - The matplotlib figure and axis objects
@@ -103,75 +105,77 @@ def create_periodic_heatmap(element_values, title="Periodic Table Heatmap",
     # Build the map from symbol to atomic number
     symbol_to_z = get_element_z_map()
 
-    # Calculate min/max values for normalization
-    present_elements = set(element_values.keys())
-    max_value = 0
-    min_value_nonzero = float('inf')
-
     # Prepare data for plotting
     plot_data = {}
     all_elements = set(chemical_symbols[1:119])  # Elements 1 to 118
+    present_elements = set(element_values.keys())
+
+    # For value mode, calculate min/max values for normalization
+    max_value = 0
+    min_value_nonzero = float('inf')
 
     for symbol in all_elements:
         z = symbol_to_z.get(symbol)
         if not z or z > 118:  # Skip dummy elements or beyond Oganesson
             continue
 
-        value = element_values.get(symbol, 0)
+        value = element_values.get(symbol, 0 if mode == "value" else "")
         pos = ELEMENT_POSITIONS.get(z)
 
         if pos:
             plot_data[symbol] = {'z': z, 'pos': pos, 'value': value}
-            if value > 0:
+            # Only compute min/max for numeric values in value mode
+            if mode == "value" and isinstance(value, (int, float)) and value > 0:
                 max_value = max(max_value, value)
                 min_value_nonzero = min(min_value_nonzero, value)
 
-    # Handle edge cases
-    if max_value == 0:
-        print("Warning: No positive values found in the dataset.")
-        max_value = 1
+    # Handle edge cases for value mode
+    if mode == "value":
+        if max_value == 0:
+            print("Warning: No positive values found in the dataset.")
+            max_value = 1
 
-    if min_value_nonzero == float('inf'):
-        min_value_nonzero = 1
+        if min_value_nonzero == float('inf'):
+            min_value_nonzero = 1
 
-    # Choose colormap
-    cmap = plt.get_cmap(colormap)
+        # Set up normalization for color mapping
+        cmap = plt.get_cmap(colormap)
 
-    # Prepare normalization
-    if log_scale:
-        # Better handling of log scale range
-        if min_value_nonzero == max_value:
-            # If all values are the same, create a small range around that value
-            vmin_norm = max(0.9 * min_value_nonzero, 1e-10)  # Ensure positive for log scale
-            vmax_norm = 1.1 * max_value
+        # Prepare normalization
+        if log_scale:
+            # Better handling of log scale range
+            if min_value_nonzero == max_value:
+                # If all values are the same, create a small range around that value
+                vmin_norm = max(0.9 * min_value_nonzero, 1e-10)  # Ensure positive for log scale
+                vmax_norm = 1.1 * max_value
+            else:
+                # Calculate logarithmic range with better precision
+                log_min = math.log10(max(min_value_nonzero, 1e-10))
+                log_max = math.log10(max_value)
+
+                # Ensure a reasonable range between min and max
+                if log_max - log_min < 1:
+                    # If range is too small, expand it slightly
+                    log_min = max(log_min - 0.5, -10)  # Don't go below 1e-10
+                    log_max = log_max + 0.5
+
+                vmin_norm = 10 ** math.floor(log_min)
+                vmax_norm = 10 ** math.ceil(log_max)
+
+            # Ensure vmin is positive for LogNorm
+            vmin_norm = max(vmin_norm, 1e-10)
+            norm = colors.LogNorm(vmin=vmin_norm, vmax=vmax_norm)
         else:
-            # Calculate logarithmic range with better precision
-            log_min = math.log10(max(min_value_nonzero, 1e-10))
-            log_max = math.log10(max_value)
+            # Linear scale with improved range handling
+            if min_value_nonzero == max_value and max_value > 0:
+                # If all values are the same, create a range
+                vmin_norm = 0
+                vmax_norm = max_value * 1.1  # Add 10% to max for better visualization
+            else:
+                vmin_norm = 0
+                vmax_norm = max_value
 
-            # Ensure a reasonable range between min and max
-            if log_max - log_min < 1:
-                # If range is too small, expand it slightly
-                log_min = max(log_min - 0.5, -10)  # Don't go below 1e-10
-                log_max = log_max + 0.5
-
-            vmin_norm = 10 ** math.floor(log_min)
-            vmax_norm = 10 ** math.ceil(log_max)
-
-        # Ensure vmin is positive for LogNorm
-        vmin_norm = max(vmin_norm, 1e-10)
-        norm = colors.LogNorm(vmin=vmin_norm, vmax=vmax_norm)
-    else:
-        # Linear scale with improved range handling
-        if min_value_nonzero == max_value and max_value > 0:
-            # If all values are the same, create a range
-            vmin_norm = 0
-            vmax_norm = max_value * 1.1  # Add 10% to max for better visualization
-        else:
-            vmin_norm = 0
-            vmax_norm = max_value
-
-        norm = colors.Normalize(vmin=vmin_norm, vmax=vmax_norm)
+            norm = colors.Normalize(vmin=vmin_norm, vmax=vmax_norm)
 
     # Create plot
     fig, ax = plt.subplots(figsize=(16, 8))
@@ -188,25 +192,27 @@ def create_periodic_heatmap(element_values, title="Periodic Table Heatmap",
         edge_color = 'gray'
         text_color = 'black'
 
-        # Apply color based on value
-        if value > 0 or (value == 0 and include_zero_values):
-            try:
-                # Safe color mapping to handle edge cases
-                if log_scale and value <= 0:
-                    # For log scale, set zero/negative values to minimum
-                    color = cmap(0)  # Minimum of colormap
-                else:
-                    # For valid values, use proper normalization
-                    mapped_value = max(value, vmin_norm if log_scale and value > 0 else 0)
-                    color = cmap(norm(mapped_value))
+        # Apply color based on value (only in value mode)
+        if mode == "value":
+            if (isinstance(value, (int, float)) and value > 0) or \
+                    (value == 0 and include_zero_values):
+                try:
+                    # Safe color mapping to handle edge cases
+                    if log_scale and value <= 0:
+                        # For log scale, set zero/negative values to minimum
+                        color = cmap(0)  # Minimum of colormap
+                    else:
+                        # For valid values, use proper normalization
+                        mapped_value = max(value, vmin_norm if log_scale and value > 0 else 0)
+                        color = cmap(norm(mapped_value))
 
-                # Adjust text color for contrast
-                r, g, b, _ = color
-                luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
-                text_color = 'white' if luminance < 0.5 else 'black'
-            except Exception as e:
-                print(f"Warning: Color mapping error for {symbol} (value={value}): {e}")
-                color = 'lightgray'
+                    # Adjust text color for contrast
+                    r, g, b, _ = color
+                    luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
+                    text_color = 'white' if luminance < 0.5 else 'black'
+                except Exception as e:
+                    print(f"Warning: Color mapping error for {symbol} (value={value}): {e}")
+                    color = 'lightgray'
 
         # Draw element rectangle
         rect = patches.Rectangle(
@@ -223,24 +229,40 @@ def create_periodic_heatmap(element_values, title="Periodic Table Heatmap",
         ax.text(col - 0.5, row - 0.3, symbol,
                 ha='center', va='center', fontsize=10, weight='bold', color=text_color)
 
-        # Add element value
-        if value > 0:
-            # Format the value
-            if value >= 1000 or (value < 0.1 and value > 0):
-                value_str = f"{value:.1e}"  # Scientific notation for large/small values
-            elif isinstance(value, int):
-                value_str = f"{value}"
-            else:
-                value_str = f"{value:.2f}" if value < 10 else f"{value:.1f}"  # Better precision
+        # Add element value or text
+        if mode == "value":
+            # Display numeric values
+            if isinstance(value, (int, float)):
+                if value > 0:
+                    # Format the value
+                    if value >= 1000 or (value < 0.1 and value > 0):
+                        value_str = f"{value:.1e}"  # Scientific notation for large/small values
+                    elif isinstance(value, int):
+                        value_str = f"{value}"
+                    else:
+                        value_str = f"{value:.2f}" if value < 10 else f"{value:.1f}"  # Better precision
 
-            ax.text(col - 0.5, row - 0.7, value_str,
-                    ha='center', va='center', fontsize=7, color=text_color)
-        elif value == 0 and symbol in present_elements:
-            ax.text(col - 0.5, row - 0.7, "0",
-                    ha='center', va='center', fontsize=7, color=text_color)
-        else:
-            ax.text(col - 0.5, row - 0.7, missing_value_text,
-                    ha='center', va='center', fontsize=7, color='gray')
+                    ax.text(col - 0.5, row - 0.7, value_str,
+                            ha='center', va='center', fontsize=text_size, color=text_color)
+                elif value == 0 and symbol in present_elements:
+                    ax.text(col - 0.5, row - 0.7, "0",
+                            ha='center', va='center', fontsize=text_size, color=text_color)
+                else:
+                    ax.text(col - 0.5, row - 0.7, missing_value_text,
+                            ha='center', va='center', fontsize=text_size, color='gray')
+            else:
+                ax.text(col - 0.5, row - 0.7, missing_value_text,
+                        ha='center', va='center', fontsize=text_size, color='gray')
+        else:  # Text mode
+            # Display text values
+            if value and str(value).strip():  # Check if there's actual text content
+                # Adjust text size based on content length
+                adjusted_size = max(text_size - min(len(str(value)) // 5, 3), 4)
+                ax.text(col - 0.5, row - 0.7, str(value),
+                        ha='center', va='center', fontsize=adjusted_size, color=text_color)
+            else:
+                ax.text(col - 0.5, row - 0.7, missing_value_text,
+                        ha='center', va='center', fontsize=text_size, color='gray')
 
     # Customize plot layout
     # Determine axis limits based on element positions
@@ -256,38 +278,44 @@ def create_periodic_heatmap(element_values, title="Periodic Table Heatmap",
     ax.set_yticks([])
     ax.axis('off')  # Turn off the frame
 
-    # Add colorbar
-    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-    sm.set_array([])
-    cbar = fig.colorbar(sm, ax=ax, orientation='horizontal', pad=0.02, fraction=0.05, aspect=30)
-    cbar.set_label(colorbar_label, size=12)
+    # Add colorbar only for value mode
+    if mode == "value":
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array([])
+        cbar = fig.colorbar(sm, ax=ax, orientation='horizontal', pad=0.02, fraction=0.05, aspect=30)
+        cbar.set_label(colorbar_label, size=12)
 
-    # Set up ticks for log scale if needed
-    if log_scale and max_value > 0:
-        if vmin_norm < vmax_norm:
-            # Create appropriate logarithmic ticks
-            if vmax_norm / vmin_norm > 1000:
-                # For wide ranges, use order-of-magnitude ticks
-                log_min = math.floor(math.log10(vmin_norm))
-                log_max = math.ceil(math.log10(vmax_norm))
-                ticks = [10 ** i for i in range(log_min, log_max + 1)]
-            else:
-                # For narrower ranges, use more granular ticks
-                log_min = math.log10(vmin_norm)
-                log_max = math.log10(vmax_norm)
-                # Determine appropriate tick spacing
-                span = log_max - log_min
-                if span <= 2:
-                    # More granular ticks for small spans
-                    positions = np.linspace(log_min, log_max, 5)
-                    ticks = [10 ** p for p in positions]
+        # Set up ticks for log scale if needed
+        if log_scale and max_value > 0:
+            if vmin_norm < vmax_norm:
+                # Create appropriate logarithmic ticks
+                if vmax_norm / vmin_norm > 1000:
+                    # For wide ranges, use order-of-magnitude ticks
+                    log_min = math.floor(math.log10(vmin_norm))
+                    log_max = math.ceil(math.log10(vmax_norm))
+                    ticks = [10 ** i for i in range(log_min, log_max + 1)]
                 else:
-                    # Whole powers of 10 for larger spans
-                    ticks = [10 ** i for i in range(int(log_min), int(log_max) + 1)]
+                    # For narrower ranges, use more granular ticks
+                    log_min = math.log10(vmin_norm)
+                    log_max = math.log10(vmax_norm)
+                    # Determine appropriate tick spacing
+                    span = log_max - log_min
+                    if span <= 2:
+                        # More granular ticks for small spans
+                        positions = np.linspace(log_min, log_max, 5)
+                        ticks = [10 ** p for p in positions]
+                    else:
+                        # Whole powers of 10 for larger spans
+                        ticks = [10 ** i for i in range(int(log_min), int(log_max) + 1)]
 
-            cbar.set_ticks(ticks)
-            # Format tick labels nicely (1, 10, 100, etc.)
-            cbar.set_ticklabels([f"{t:g}" for t in ticks])
+                cbar.set_ticks(ticks)
+                # Format tick labels nicely (1, 10, 100, etc.)
+                cbar.set_ticklabels([f"{t:g}" for t in ticks])
+
+    # Add a legend for text mode to explain the visualization
+    if mode == "text":
+        plt.figtext(0.5, 0.01, "Text display mode: Showing custom labels for each element",
+                    ha='center', fontsize=10, style='italic')
 
     plt.title(title, fontsize=16, pad=20)
     plt.tight_layout(rect=[0, 0.05, 1, 0.95])
@@ -298,7 +326,6 @@ def create_periodic_heatmap(element_values, title="Periodic Table Heatmap",
         print(f"Heatmap saved to {output_file}")
 
     return fig, ax
-
 
 # =============================================================================
 # Core Analysis Functions
@@ -352,7 +379,7 @@ def calculate_band_errors(bands1_shifted, bands2_shifted, band_indices):
     return BandErrorMetrics(mae=mae, rmse=rmse, max_ae=max_ae)
 
 
-def delta_band(band_energy1, band_energy2, n_elec, wk, smearing, smearing_sigma, efermi_shift = 0, return_all = False):
+def delta_band(band_energy1, band_energy2, n_elec, wk, smearing, smearing_sigma, efermi_shift = 0, return_all = False, efermi_1 = None, efermi_2 = None):
     '''
     Calculate the "distance" between two band structures.
     Parameters
@@ -404,7 +431,6 @@ bands are occupied, otherwise please check your data.""")
     min_n_band = min(band_energy1.shape[0], band_energy2.shape[0])
     band_energy1 = band_energy1[:min_n_band]
     band_energy2 = band_energy2[:min_n_band]
-
     # convert to arrays for convenience
     be1 = np.expand_dims(band_energy1.T, 0)
     be2 = np.expand_dims(band_energy2.T, 0)
@@ -418,11 +444,12 @@ bands are occupied, otherwise please check your data.""")
     #     raise TypeError(f'Error: Inconsistent shape between two band structures: {be1.shape} vs {be2.shape}.')
     # assert be1.shape[1] == wk.shape[1]
     assert smearing_sigma >= 0 and n_elec1 > 0 and n_elec2 > 0
-    # determine the Fermi levels for two band structures by root finding
-    efermi1 = efermi(wk, be1, n_elec1)
-    efermi2 = efermi(wk, be2, n_elec2)
+    if not efermi_1:
+        efermi_1 = efermi(wk, be1, n_elec1)
+    if not efermi_2:
+        efermi_2 = efermi(wk, be2, n_elec2)
     # geometrically averaged occupation (under shifted Fermi level)
-    f_avg = np.sqrt(f_occ(be1, efermi1 + efermi_shift) * f_occ(be2, efermi2 + efermi_shift))
+    f_avg = np.sqrt(f_occ(be1, efermi_1 + efermi_shift) * f_occ(be2, efermi_2 + efermi_shift))
     res = minimize_scalar(lambda omega: np.sum(wk * f_avg * (be1 - be2 + omega)**2), \
             (-10, 10), method='brent')
     omega = res.x
@@ -433,9 +460,9 @@ bands are occupied, otherwise please check your data.""")
     #         delta = np.array(be1[ispin][ik]) - np.array(be2[ispin][ik]) + omega
     #         # zval = 19, natom = 4, nocc = 19*2 = 38
     #         if np.linalg.norm(delta, np.inf)*1e3 > 100:
-    #             print(f_occ(be1, efermi1 + efermi_shift)[ispin][ik], delta)
+    #             print(f_occ(be1, efermi_1 + efermi_shift)[ispin][ik], delta)
     #             print(ispin, ik, np.linalg.norm(delta, np.inf))
-    return (eta, eta_max) if not return_all else (eta, eta_max, efermi1, efermi2, omega)
+    return (eta, eta_max) if not return_all else (eta, eta_max, efermi_1, efermi_2, omega)
 
 
 def quantify_band_error(bands1, e_vbm_max1, bands2, e_vbm_max2, vbm_index,

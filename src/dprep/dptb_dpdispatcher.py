@@ -6,6 +6,7 @@ import shutil
 from dpdispatcher import Task, Submission, Machine, Resources
 import copy
 import itertools
+from ase.units import Bohr, Ang
 
 
 def merge_parameters(private_para, public_para):
@@ -73,7 +74,6 @@ def maintain_patience(merged_para_dict):
     return merged_para_dict
 
 
-
 def parse_orbital_files(folder_path):
     """
     Parse orbital filenames to extract element, cutoff, and basis information
@@ -109,7 +109,7 @@ def parse_orbital_files(folder_path):
             basis = match.group(4)
 
             # Store the cutoff value
-            cutoff_dict[element] = int(au_value)
+            cutoff_dict[element] = int(au_value) * 2 * Bohr / Ang
 
             # Store the basis value
             basis_dict[element] = basis
