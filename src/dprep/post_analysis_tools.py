@@ -581,7 +581,9 @@ def _extract_band_data(job_dir_path: Path, target_band_file: str = "BANDS_1.dat"
     post_instance = PostBand([job_dir])  # May not need path if methods are static
 
     input_param = ReadInput(str(job_dir_path / inputfile_name))
-    kpt_reader_instance = ReadKpt(str(job_dir_path / kptfile_name))  # Try instantiation
+    kptfile_name = os.path.join(job_dir_path, kptfile_name)
+    kpt_reader_instance = ReadKpt(kptfile_name)  # Try instantiation
+
     # Check if result is directly available or needs method call (adapt as needed)
     if hasattr(kpt_reader_instance, 'kpt_data'):  # Example attribute access
         kpt_data = kpt_reader_instance.kpt_data

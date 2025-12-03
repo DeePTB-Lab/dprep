@@ -16,7 +16,7 @@ smearing_method         gaussian
 smearing_sigma          0.002
 lspinorb                0  #后续考虑加上 SOC
 out_band                1  # output band structure
-out_chg                 -1  # output real space charge
+out_chg                 1  # output real space charge
 out_wfc_lcao            0  # output the wavefunction coefficients, Availability: Numerical atomic orbital basis
 out_mat_hs2             True # output ham and overlap matrix
 out_dm1                 1  # output density matrix,  out_dm with k-point algorithm is not implemented yet.
