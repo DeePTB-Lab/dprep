@@ -15,20 +15,33 @@ from ase.io.abacus import write_abacus
 from dpdispatcher import Task, Submission, Machine, Resources
 from dprep.get_pp_orb_info import generate_pp_orb_dict
 from dprep.post_analysis_tools import copy_failed_folders, save_direct_kpoints
+# 新增 import
+from dptb.postprocess.write_abacus_csr_file import write_blocks_to_abacus_csr
 
 # Configure logging to file 'job_monitor.log'
 logging.basicConfig(filename='job_monitor.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+
+# ==========================================
+# Helper Functions
+# ==========================================
+
+def get_abacus_csr_name(matrix_symbol: str) -> str:
+    """根据 matrix_symbol 返回标准的 Abacus CSR 文件名。"""
+    symbol_map = {
+        'DM': 'dmrs1_nao.csr',
+        'H': 'hrs1_nao.csr',
+        'S': 'srs1_nao.csr'
+    }
+    return symbol_map.get(matrix_symbol, f'{matrix_symbol.lower()}rs1_nao.csr')
+
+
+# ==========================================
+# Main Logic
+# ==========================================
+
 def submit_job(job_folder, cmd_line):
-    """Submits a job to the local system using subprocess.
-
-    Args:
-        job_folder (str): Path to the job directory.
-        cmd_line (str): Command line to execute the job.
-
-    Returns:
-        subprocess.Popen: Process object representing the submitted job.
-    """
+    """Submits a job to the local system using subprocess."""
     os.chdir(job_folder)
     process = subprocess.Popen(cmd_line, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     return process
@@ -65,20 +78,11 @@ def clean_out_files(out_folder_path, rm_out_files_list=['INPUT']):
 
 
 def monitor_jobs(job_queue, active_jobs, cmd_line, clean_files_flag, rm_out_files_list):
-    """Monitors active jobs and submits new ones from the queue.
-
-    This function runs in a separate thread and continuously checks the status of active jobs.
-    When a job finishes, it removes it from the active_jobs dictionary and submits a new job from the queue if available.
-
-    Args:
-        job_queue (Queue): Queue containing job folders to be processed.
-        active_jobs (dict): Dictionary of currently running jobs (job_folder: process).
-        cmd_line (str): Command line to execute for each job.
-    """
+    """Monitors active jobs and submits new ones from the queue."""
     while True:
         for job_folder, process in list(active_jobs.items()):
             retcode = process.poll()
-            if retcode is not None:  # Job has finished (poll() returns return code when process terminates)
+            if retcode is not None:  # Job has finished
                 del active_jobs[job_folder]
                 with open(os.path.join(job_folder, 'FINISHED'), 'w') as f:
                     pass
@@ -91,19 +95,7 @@ def monitor_jobs(job_queue, active_jobs, cmd_line, clean_files_flag, rm_out_file
 
 
 def split_database(db_path, output_prefix, structures_per_split):
-    """Splits an ase.db database into smaller databases.
-
-    This function divides a large ASE database into smaller databases, each containing a specified number of structures.
-    This is useful for parallel processing, especially in remote submissions.
-
-    Args:
-        db_path (str): Path to the input ASE database file.
-        output_prefix (str): Prefix for the output split database files (e.g., 'split_db').
-        structures_per_split (int): Number of structures to include in each split database.
-
-    Returns:
-        list[str]: List of paths to the created split database files.
-    """
+    """Splits an ase.db database into smaller databases."""
     db = connect(db_path)
     total_ids = list(db.get_ids())
     n_splits = math.ceil(len(total_ids) / structures_per_split)  # Calculate number of splits needed
@@ -123,15 +115,7 @@ def split_database(db_path, output_prefix, structures_per_split):
 
 
 def modify_input_file(parameters):
-    """
-    Modifies the 'INPUT' file based on the provided parameters.
-
-    Args:
-        parameters (dict): A dictionary where keys are keywords and values are
-                           the new values to set in the INPUT file.
-                           For example:
-                           {'ntype': '3', 'ecutwfc': '120'}
-    """
+    """Modifies the 'INPUT' file based on the provided parameters."""
     filepath = 'INPUT'
     keyword_found_in_file = {}  # Track if keyword is found in the file
     for keyword in parameters:
@@ -161,7 +145,8 @@ def modify_input_file(parameters):
         f.writelines(modified_lines)
 
 
-def prepare_job_directories(db_src_path, common_folder_path, cooking_path, pp_orb_info, has_kpoints=False, prep_with_abacus_test_cmd=None):
+def prepare_job_directories(db_src_path, common_folder_path, cooking_path, pp_orb_info, has_kpoints=False,
+                            csr_key='predicted_data', prep_with_abacus_test_cmd=None):
     cwd_ = os.getcwd()
     os.makedirs(cooking_path, exist_ok=True)
     db_src_path = os.path.abspath(db_src_path)
@@ -171,8 +156,12 @@ def prepare_job_directories(db_src_path, common_folder_path, cooking_path, pp_or
             job_dir = os.path.join(cooking_path, a_row.hpc_id)
             os.makedirs(job_dir, exist_ok=True)
             os.chdir(job_dir)
+
+            # 1. Write Structure
             write_abacus(os.path.join(job_dir, 'STRU'), an_atoms, scaled=False,
                          pp=pp_orb_info['pp'], basis=pp_orb_info['basis'])
+
+            # 2. Copy Common Files
             for item in os.listdir(common_folder_path):
                 if os.path.exists(item):
                     continue
@@ -181,13 +170,35 @@ def prepare_job_directories(db_src_path, common_folder_path, cooking_path, pp_or
                     shutil.copytree(src_file, item)
                 else:
                     shutil.copy2(src_file, item)  # copy2 to preserve metadata
-            # ntype = len(set(an_atoms.get_atomic_numbers()))
+
+            # 3. Write CSR File (If exists in DB)
+            # 最小侵入式修改：直接从 data 中读取并写入文件
+            if 'csr_info' in a_row.data and csr_key in a_row.data:
+                csr_info = a_row.data['csr_info']
+                blocks = a_row.data[csr_key]
+                matrix_symbol = csr_info.get('matrix_symbol', 'H')
+
+                # 获取文件名并拼接当前 job_dir 路径
+                csr_filename = get_abacus_csr_name(matrix_symbol)
+                output_csr_path = os.path.join(job_dir, csr_filename)
+
+                write_blocks_to_abacus_csr(
+                    matrix_symbol=matrix_symbol,
+                    atomic_numbers=an_atoms.get_atomic_numbers(),
+                    basis_dict=csr_info['basis_dict'],
+                    blocks_dict=blocks,
+                    output_path=output_csr_path
+                )
+
+            # 4. Modify Input
             modify_input_file({})
 
+            # 5. Run abacus test (if needed)
             if prep_with_abacus_test_cmd not in (None, 'None'):
                 prep_with_abacus_test_cmd = prep_with_abacus_test_cmd + f' -j ./'
                 os.system(prep_with_abacus_test_cmd)
 
+            # 6. Handle Kpoints (if needed)
             if has_kpoints:
                 save_direct_kpoints(kpoints=a_row.data['kpoints'])
                 np.save('old_bands.npy', np.array(a_row.data['bands']))
@@ -203,26 +214,13 @@ def create_local_handler_file(n_parallel_jobs,
                               cmd_line,
                               prep_with_abacus_test_cmd=None,
                               common_folder_path='public',
+                              csr_key='predicted_data',
                               local_db_name='sub_structures.db',
                               clean_files_flag=False,
                               rm_out_files_list=[],
                               has_kpoints=False,
                               output_file='local_handler.py'):
-    """
-    Create a local_handler.py file based on the provided parameters.
-
-    Parameters:
-        n_parallel_jobs: Number of parallel jobs.
-        common_folder_path: Path to the common folder.
-        cmd_line: Command line string to be executed.
-        pp_orb_info: info for pp and orb.
-        prep_with_abacus_test_cmd: command to call abacus-test to prepare local workbase.
-        local_db_name: Name or path of the local database. (Default: 'sub_structures.db')
-        clean_files_flag: Boolean flag to indicate whether to clean files. (Default: False)
-        rm_out_files_list: List of output files to be removed. (Default: [])
-        output_file: Name of the file to be generated. (Default: 'local_handler.py')
-    """
-    # Use f-string to format the file content with the provided parameters
+    """Create a local_handler.py file based on the provided parameters."""
     file_content = f"""import os
 import sys
 from ase.calculators.abacus import Abacus
@@ -238,6 +236,7 @@ run_jobs_locally(
     local_db_name='{local_db_name}',
     common_folder_path='{common_folder_path}',
     cmd_line='{cmd_line}',
+    csr_key='{csr_key}',
     clean_files_flag={clean_files_flag},
     pp_orb_info={pp_orb_info},
     prep_with_abacus_test_cmd="{prep_with_abacus_test_cmd}",
@@ -245,7 +244,6 @@ run_jobs_locally(
     has_kpoints={has_kpoints}
 )
 """
-    # Write the formatted content to the specified file
     with open(output_file, 'w') as f:
         f.write(file_content)
 
@@ -254,16 +252,17 @@ def run_jobs_locally(n_parallel_jobs, cmd_line,
                      common_folder_path,
                      pp_orb_info,
                      prep_with_abacus_test_cmd=None,
+                     csr_key='predicted_data',
                      clean_files_flag=False,
                      local_db_name='sub_structures.db',
                      rm_out_files_list: list = [],
-                     has_kpoints=False,):
-
+                     has_kpoints=False, ):
     cwd_ = os.getcwd()
     cooking_path = os.path.abspath('cooking')
     common_folder_path = os.path.abspath(common_folder_path)
     prepare_job_directories(db_src_path=local_db_name, common_folder_path=common_folder_path, cooking_path=cooking_path,
-                            pp_orb_info=pp_orb_info, has_kpoints=has_kpoints, prep_with_abacus_test_cmd=prep_with_abacus_test_cmd)
+                            pp_orb_info=pp_orb_info, has_kpoints=has_kpoints, csr_key=csr_key,
+                            prep_with_abacus_test_cmd=prep_with_abacus_test_cmd)
 
     job_queue = Queue()
     job_folder_path_list = []
@@ -281,7 +280,8 @@ def run_jobs_locally(n_parallel_jobs, cmd_line,
         active_jobs[job_folder] = submit_job(job_folder, cmd_line)
 
     # Start monitoring thread
-    monitor_thread = Thread(target=monitor_jobs, args=(job_queue, active_jobs, cmd_line, clean_files_flag, rm_out_files_list), daemon=True)
+    monitor_thread = Thread(target=monitor_jobs,
+                            args=(job_queue, active_jobs, cmd_line, clean_files_flag, rm_out_files_list), daemon=True)
     monitor_thread.start()
 
     os.chdir(cwd_)
@@ -294,7 +294,8 @@ def run_jobs_locally(n_parallel_jobs, cmd_line,
         log_remaining_time(start_time=start_time, n_completed_jobs=n_completed_jobs, n_total_jobs=n_total_jobs)
 
 
-def run_jobs_remotely(n_parallel_machines, resrc_info, machine_info, local_job_para, db_src_path, common_folder_path, pp_orb_info_path, id_name=None):
+def run_jobs_remotely(n_parallel_machines, resrc_info, machine_info, local_job_para, db_src_path, common_folder_path,
+                      pp_orb_info_path, check_file_name='dmrs1_nao.csr', id_name=None):
     cwd_ = os.getcwd()
     db_src_path = os.path.abspath(db_src_path)
     common_folder_path = os.path.abspath(common_folder_path)
@@ -339,7 +340,8 @@ def run_jobs_remotely(n_parallel_machines, resrc_info, machine_info, local_job_p
             with connect('sub_structures.db') as sub_db:
                 start_index = i * sub_n_mols
                 end_index = (i + 1) * sub_n_mols if i < actual_machine_used - 1 else len(random_idx_list)
-                indices_for_sub = random_idx_list[start_index:end_index]  # Slice the random index list for the current sub
+                indices_for_sub = random_idx_list[
+                                  start_index:end_index]  # Slice the random index list for the current sub
                 for real_idx in indices_for_sub:
                     for a_row in src_db.select(id=real_idx + 1):
                         pass
@@ -373,6 +375,6 @@ def run_jobs_remotely(n_parallel_machines, resrc_info, machine_info, local_job_p
     copy_failed_folders(
         source_dir=cooking_path,
         target_folder_name='OUT.ABACUS',
-        check_file_name='istate.info',
+        check_file_name=check_file_name,
         dump_dir=os.path.join(cwd_, 'failed_jobs')
     )

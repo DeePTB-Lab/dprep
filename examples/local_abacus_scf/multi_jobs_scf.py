@@ -5,8 +5,8 @@ from dprep.dpdispatcher_tools import run_jobs_remotely
 # -----------------------------------------------------------------------------------------------------------------
 n_parallel_machines = 2
 local_job_para = {
-    'n_parallel_jobs': 2,
-    'cmd_line': 'OMP_NUM_THREADS=1 mpirun -n 12 abacus',
+    'n_parallel_jobs': 1,
+    'cmd_line': 'OMP_NUM_THREADS=1 mpirun -n 6 abacus',
 }
 # -----------------------------------------------------------------------------------------------------------------
 local_root = os.getcwd()

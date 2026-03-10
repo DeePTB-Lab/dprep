@@ -6,6 +6,7 @@ import shutil
 import sys
 import traceback
 from collections import defaultdict, namedtuple, Counter # Added Counter
+import fnmatch
 from pathlib import Path
 import math # Added math
 from scipy.special import erf
@@ -547,12 +548,32 @@ def quantify_band_error(bands1, e_vbm_max1, bands2, e_vbm_max2, vbm_index,
 # =============================================================================
 def simple_get_n_occupied(log_nscf_path):
     occupied_bands = None
-    pattern = re.compile(r"occupied bands\s*=\s*(\d+)")
-    with open(log_nscf_path, 'r', encoding='utf-8') as f:  # 使用 utf-8 编码打开
-        for line in f:
-            match = pattern.search(line)
-            if match:
-                occupied_bands = int(match.group(1))
+
+    # --- 修改开始 ---
+    # 使用非捕获组 (?:...) 和 | (或) 运算符来兼容两种格式
+    # 格式 1: occupied bands = 50
+    # 格式 2: Occupied electronic states = 18
+    # re.IGNORECASE 让匹配不区分大小写
+    pattern = re.compile(r"(?:occupied bands|Occupied electronic states)\s*=\s*(\d+)", re.IGNORECASE)
+    # --- 修改结束 ---
+
+    if not os.path.exists(log_nscf_path):
+        # 既然你已经在 debug 了，保留这个检查是个好习惯
+        print(f"Warning: File not found: {log_nscf_path}")
+        return None
+
+    try:
+        with open(log_nscf_path, 'r', encoding='utf-8', errors='ignore') as f:
+            for line in f:
+                match = pattern.search(line)
+                if match:
+                    occupied_bands = int(match.group(1))
+                    # 找到后通常可以直接 break，除非你担心文件后面还有覆盖值
+                    break
+    except Exception as e:
+        print(f"Error reading {log_nscf_path}: {e}")
+        return None
+
     return occupied_bands
 
 
@@ -667,63 +688,97 @@ def merge_svgs_to_pdf(svg_files, output_pdf):
     print(f"PDF saved to: {output_pdf}")
 
 
-def copy_failed_folders(source_dir, target_folder_name, check_file_name, dump_dir):
+def copy_failed_folders(source_dir, target_pattern, check_file_name, dump_dir, remove_failed_tree=False):
     """
-    Recursively search through `source_dir` for folders named `target_folder_name`.
-    If such a folder is found and does NOT contain the file `check_file_name`,
+    Recursively search through `source_dir` for folders matching `target_pattern`.
+    If such a folder is found and does NOT contain `check_file_name`,
     copy its parent directory (considered the subtask ID) to `dump_dir`.
 
     Parameters:
         source_dir (str or Path): The root directory to start the search from.
-        target_folder_name (str): The name of the folder to look for.
+        target_pattern (str): The pattern to match folder names or relative paths (e.g., 'id_*' or 'dir/id_*').
         check_file_name (str): The file whose presence is checked inside the target folder.
         dump_dir (str or Path): The destination directory to copy the parent folders into.
+        remove_failed_tree (bool): If True, removes the original parent directory after successful copy.
     """
     source_dir = Path(source_dir)
     dump_dir = Path(dump_dir)
+
     if not source_dir.is_dir():
         print(f"Error: Source directory '{source_dir}' does not exist.")
         return
 
+    # Create dump directory if it doesn't exist
     dump_dir.mkdir(parents=True, exist_ok=True)
 
     found_count = 0
     copied_count = 0
+    trees_to_remove = set()  # 收集待删除的原始目录，防止 os.walk 遍历时删除导致崩溃
 
     print(f"Searching in: {source_dir}")
-    print(f"Looking for folders named: '{target_folder_name}'")
-    print(f"Checking for absence of file: '{check_file_name}' inside those folders")
+    print(f"Looking for folders matching pattern: '{target_pattern}'")
+    print(f"Checking for absence of file: '{check_file_name}' inside matches")
     print(f"Copying the parent folder (subtask ID) to: {dump_dir}")
-    print("-" * 40)
+    print(f"Remove original failed tree: {remove_failed_tree}")
+    print("-" * 60)
 
     for root, dirs, files in os.walk(source_dir):
-        # If the current directory name matches the target
-        if os.path.basename(root) == target_folder_name:
-            found_count += 1
-            folder_path = Path(root)
-            parent_folder = folder_path.parent  # The subtask folder (one level up)
-            task_id = parent_folder.name
+        folder_path = Path(root)
 
-            # Check if the file is missing
-            if check_file_name not in os.listdir(folder_path):
-                print(f"  · Missing file '{check_file_name}' in: {folder_path}")
+        # 改动 1: 使用 folder_path.match 替代 fnmatch
+        # 这样不仅支持文件夹名(id_*)，也支持含层级的路径模式(例如 subdir/id_*)
+        if folder_path.match(target_pattern):
+            found_count += 1
+
+            # Check if the required file is MISSING inside this folder
+            if check_file_name not in set(files):
+                task_id = folder_path.name
+                abs_parent_path = folder_path.resolve()  # 获取绝对路径
+
+                print(f"  · Found match: '{folder_path.name}' -> Missing '{check_file_name}'")
+                # 改动 2: 无论是否删除，都打印其绝对路径
+                print(f"    - Failed tree absolute path: {abs_parent_path}")
+
                 destination = dump_dir / task_id
+                copy_success = False
 
                 if destination.exists():
-                    print(f"    - Skipped: destination '{destination}' already exists.")
+                    print(f"    - Skipped: Destination '{task_id}' already exists in dump dir.")
+                    copy_success = True  # 目标已存在，视同安全，允许后续触发删除
                 else:
                     try:
-                        shutil.copytree(parent_folder, destination)
+                        shutil.copytree(folder_path, destination)
                         copied_count += 1
-                        print(f"    - Successfully copied to: '{destination}'")
+                        copy_success = True
+                        print(f"    - Successfully copied parent '{task_id}' to dump dir.")
                     except Exception as e:
-                        print(f"    - Failed to copy: {e}")
+                        print(f"    - Failed to copy '{task_id}': {e}")
 
-    print("\n" + "-" * 40)
-    print(f"Found {found_count} folders named '{target_folder_name}'.")
+                # 改动 3: 记录需要删除的目录 (仅在拷贝成功或已存在，且不是根目录的情况下)
+                if remove_failed_tree and copy_success:
+                    if abs_parent_path != source_dir.resolve():
+                        trees_to_remove.add(abs_parent_path)
+                    else:
+                        print(f"    - Warning: Refusing to remove root source directory '{abs_parent_path}'")
+
+    print("\n" + "-" * 60)
+    print(f"Found {found_count} folders matching '{target_pattern}'.")
     print(f"Copied {copied_count} parent folders to '{dump_dir}'.")
-    if copied_count == 0:
-        print("No missing files found, nothing was copied.")
+
+    if copied_count == 0 and not trees_to_remove:
+        print("No missing files found, nothing was copied or removed.")
+
+    # 统一在 os.walk 遍历结束后进行删除，保证遍历过程不会因为找不到目录而抛出异常
+    if remove_failed_tree and trees_to_remove:
+        print("\n" + "-" * 60)
+        print(f"Removing {len(trees_to_remove)} original failed trees...")
+        for tree_path in trees_to_remove:
+            if tree_path.exists():
+                try:
+                    shutil.rmtree(tree_path)
+                    print(f"  · Removed original: {tree_path}")
+                except Exception as e:
+                    print(f"  · Failed to remove '{tree_path}': {e}")
 
 
 def find_copy_rename_recursive(source_dir, filename_to_find, dest_dir, id_prefix):
